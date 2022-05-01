@@ -9,11 +9,13 @@ import time
 
 from math import pi
 
-from sensor_msgs.msg import Image, CameraInfo, PointCloud2
+from sensor_msgs.msg import Image, CameraInfo, PointCloud2, PointField
+from std_msgs.msg import Header
+import sensor_msgs.point_cloud2 as pc2
 
 import open3d as o3d
 
-from lib_cloud_conversion_between_Open3D_and_ROS import convertCloudFromOpen3dToRos
+#from lib_cloud_conversion_between_Open3D_and_ROS import convertCloudFromOpen3dToRos
 
 class rs2pc():
     def __init__(self):
@@ -23,6 +25,11 @@ class rs2pc():
         self.img_sub = rospy.Subscriber("/camera/depth/image_rect_raw", Image, self.img_callback)
         self.pcd = o3d.geometry.PointCloud()
 
+        self.pub = rospy.Publisher('/rs_point_cloud', PointCloud2, queue_size=1000)
+        self.FIELDS_XYZ = [PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
+                           PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
+                           PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),]
+
 
     def img_callback(self, data):
         height = data.height
@@ -31,13 +38,20 @@ class rs2pc():
         for iy in range(height):
             for ix in range(width):
                 idx = iy*width+ix
-                z = data.data[idx]/1000.0
+                z = (data.data[idx*2+1]*256+data.data[idx*2])/1000.0
                 if z!=0:
                     np_cloud[idx][0] = z*(ix-self.k[2])/self.k[0] #x
                     np_cloud[idx][1] = z*(iy-self.k[5])/self.k[4] #y
                     np_cloud[idx][2] = z
 
-        self.pcd.points = o3d.utility.Vector3dVector(np_cloud)
+        #self.pcd.points = o3d.utility.Vector3dVector(np_cloud)
+        header = Header()
+        header.stamp = rospy.Time.now()
+        header.frame_id = "camera_depth_frame"
+        fields = self.FIELDS_XYZ
+
+        pc2_data = pc2.create_cloud(header, fields, np.asarray(np_cloud))
+        self.pub.publish(pc2_data)
 
     def cam_info_callback(self, data):
         if self.is_k_empty:
@@ -54,10 +68,12 @@ def main():
 
     # rospy.sleep(3)
 
-    while True:
+    rate = rospy.Rate(10)
+
+    while not rospy.is_shutdown():
         # print(rs.k)
-        o3d.visualization.draw_geometries([rs.pcd])
-        time.sleep(1)
+        # o3d.visualization.draw_geometries([rs.pcd])
+        rate.sleep()
     #     rospy.sleep(1)
     #     #rospy.spin()
 
