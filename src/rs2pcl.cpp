@@ -10,9 +10,14 @@
 #include <pcl/PCLPointCloud2.h>
 #include <pcl/conversions.h>
 #include <iostream>
+
+#include <tf2_ros/static_transform_broadcaster.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <tf2/LinearMath/Quaternion.h>
 using namespace std;
  
-ros::Publisher pub_point_cloud2;
+// publish to point could
+ros::Publisher pub_pc2;
  
 bool is_K_empty = 1;
 double K[9];
@@ -48,8 +53,8 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     }
     // Pub to topic
     pcl::toROSMsg(*cloud, point_cloud2);
-    point_cloud2.header.frame_id = "camera_depth_frame";
-    pub_point_cloud2.publish(point_cloud2);
+    point_cloud2.header.frame_id = "world";
+    pub_pc2.publish(point_cloud2);
 }
  
  
@@ -74,7 +79,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub_img = n.subscribe("/camera/depth/image_rect_raw", 100, img_callback);
     // subscribe to the camera's parameters
     ros::Subscriber sub_cmara_info = n.subscribe("/camera/depth/camera_info", 1, camera_info_callback);
-    pub_point_cloud2 = n.advertise<sensor_msgs::PointCloud2>("/rs_point_cloud", 1000);
+    pub_pc2 = n.advertise<sensor_msgs::PointCloud2>("/rs_point_cloud", 1000);
     
     ROS_INFO("Runing ...");
     ros::spin();
