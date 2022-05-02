@@ -4,6 +4,7 @@
 import sys
 import rospy
 import numpy as np
+from math import sin, cos, pi
 
 import time
 
@@ -20,6 +21,7 @@ import open3d as o3d
 class rs2pc():
     def __init__(self):
         self.is_k_empty = True
+        self.is_data_updated = False
         self.k = [0]*9 # camera's intrinsic parameters
         self.cam_sub = rospy.Subscriber("/camera/depth/camera_info", CameraInfo, self.cam_info_callback)
         self.img_sub = rospy.Subscriber("/camera/depth/image_rect_raw", Image, self.img_callback)
@@ -50,14 +52,16 @@ class rs2pc():
                     np_cloud[idx][2] = -z*(iy-self.k[5])/self.k[4]
                     np_cloud[idx][0] = z
 
-        #self.pcd.points = o3d.utility.Vector3dVector(np_cloud)
-        header = Header()
-        header.stamp = rospy.Time.now()
-        header.frame_id = "camera_depth_frame"
-        fields = self.FIELDS_XYZ
+        self.pcd.points = o3d.utility.Vector3dVector(np_cloud)
+        ## publish as a ROS message
+        # header = Header()
+        # header.stamp = rospy.Time.now()
+        # header.frame_id = "camera_depth_frame"
+        # fields = self.FIELDS_XYZ
 
-        pc2_data = pc2.create_cloud(header, fields, np.asarray(np_cloud))
-        self.pub.publish(pc2_data)
+        # pc2_data = pc2.create_cloud(header, fields, np.asarray(np_cloud))
+        # self.pub.publish(pc2_data)
+        self.is_data_updated = True
 
     def cam_info_callback(self, data):
         if self.is_k_empty:
@@ -65,23 +69,50 @@ class rs2pc():
                 self.k[i] = data.K[i]
             self.is_k_empty = False
 
+class rod_finder():
+    def __init__(self):
+        self.rod_template = o3d.geometry.PointCloud()
+        self.create_half_cylinder()
+
+    def create_half_cylinder(self):
+        t = 60
+        r = 20
+        l = 200
+        np_cloud = np.zeros((t*l,3))
+        for il in range(l):
+            for it in range(t):
+                idx = il*t+it
+
+                np_cloud[idx][0] = r*cos(it*pi/t)
+                np_cloud[idx][1] = r*sin(it*pi/t)
+                np_cloud[idx][2] = il
+
+        self.rod_template.points = o3d.utility.Vector3dVector(np_cloud)
+
+    def find_rod(self, source, target):
+        thershold = 100
+        trans_init = np.eye(4)
+        ...
+
 
 def main():
-    rs = rs2pc()
+    # rs = rs2pc()
+    rf = rod_finder()
 
-    rospy.init_node('rs2icp', anonymous=True)
-    rospy.sleep(1)
+    # rospy.init_node('rs2icp', anonymous=True)
+    # rospy.sleep(1)
 
     # rospy.sleep(3)
 
-    rate = rospy.Rate(10)
+    # rate = rospy.Rate(10)
+    o3d.visualization.draw_geometries([rf.rod_template])
 
-    while not rospy.is_shutdown():
-        # print(rs.k)
-        # o3d.visualization.draw_geometries([rs.pcd])
-        rate.sleep()
-    #     rospy.sleep(1)
-    #     #rospy.spin()
+    # while not rospy.is_shutdown():
+    #     # print(rs.k)
+    #     o3d.visualization.draw_geometries([rs.pcd])
+    #     rate.sleep()
+    # #     rospy.sleep(1)
+    # #     #rospy.spin()
 
 
 if __name__ == '__main__':
