@@ -40,9 +40,15 @@ class rs2pc():
                 idx = iy*width+ix
                 z = (data.data[idx*2+1]*256+data.data[idx*2])/1000.0
                 if z!=0:
-                    np_cloud[idx][0] = z*(ix-self.k[2])/self.k[0] #x
-                    np_cloud[idx][1] = z*(iy-self.k[5])/self.k[4] #y
-                    np_cloud[idx][2] = z
+                    ## x, y are on the camera plane, z is the depth
+                    #np_cloud[idx][0] = z*(ix-self.k[2])/self.k[0] #x
+                    #np_cloud[idx][1] = z*(iy-self.k[5])/self.k[4] #y
+                    #np_cloud[idx][2] = z
+                    ## same coordinate as `/camera/depth/image_rect_raw`
+                    ## y (left & right), z (up & down) are on the camera plane, x is the depth
+                    np_cloud[idx][1] = -z*(ix-self.k[2])/self.k[0]
+                    np_cloud[idx][2] = -z*(iy-self.k[5])/self.k[4]
+                    np_cloud[idx][0] = z
 
         #self.pcd.points = o3d.utility.Vector3dVector(np_cloud)
         header = Header()
