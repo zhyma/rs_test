@@ -16,7 +16,12 @@ import sensor_msgs.point_cloud2 as pc2
 
 import open3d as o3d
 
+from cv_bridge import CvBridge, CvBridgeError
+import cv2
+
 #from lib_cloud_conversion_between_Open3D_and_ROS import convertCloudFromOpen3dToRos
+
+bridge = CvBridge()
 
 class rs2pc():
     def __init__(self):
@@ -69,54 +74,30 @@ class rs2pc():
                 self.k[i] = data.K[i]
             self.is_k_empty = False
 
-class rod_finder():
-    def __init__(self):
-        self.rod_template = o3d.geometry.PointCloud()
-        self.create_half_cylinder()
-
-    def create_half_cylinder(self):
-        t = 60
-        r = 20
-        l = 200
-        np_cloud = np.zeros((t*l,3))
-        for il in range(l):
-            for it in range(t):
-                idx = il*t+it
-
-                np_cloud[idx][0] = r*cos(it*pi/t)
-                np_cloud[idx][1] = r*sin(it*pi/t)
-                np_cloud[idx][2] = il
-
-        self.rod_template.points = o3d.utility.Vector3dVector(np_cloud)
-
-    def find_rod(self, source, target):
-        thershold = 100
-        trans_init = np.eye(4)
+def image_callback(msg):
+    try:
+        cv2_img = bridge.imgmsg_to_cv2(msg, "bgr8")
+    except CvBridgeError:
+        # print(e)
         ...
+    else:
+        cv2.imwrite("image.jpeg", cv2_img)
+
 
 
 def main():
     rs = rs2pc()
-    # rf = rod_finder()
 
     rospy.init_node('rs2icp', anonymous=True)
     rospy.sleep(1)
+
+    rospy.Subscriber("/camera/color/image_raw", Image, image_callback)
 
     rospy.sleep(3)
     while rs.is_data_updated==False:
         rospy.spin()
 
     o3d.io.write_point_cloud("./workspace.pcd", rs.pcd)
-
-    # rate = rospy.Rate(10)
-    # o3d.visualization.draw_geometries([rf.rod_template])
-
-    # while not rospy.is_shutdown():
-    #     # print(rs.k)
-    #     o3d.visualization.draw_geometries([rs.pcd])
-    #     rate.sleep()
-    # #     rospy.sleep(1)
-    # #     #rospy.spin()
 
 
 if __name__ == '__main__':
