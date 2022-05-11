@@ -16,7 +16,7 @@ import sensor_msgs.point_cloud2 as pc2
 
 import open3d as o3d
 
-#from lib_cloud_conversion_between_Open3D_and_ROS import convertCloudFromOpen3dToRos
+## convert RealSense depth data to Open3D point cloud
 
 class rs2o3d():
     def __init__(self):
@@ -27,6 +27,9 @@ class rs2o3d():
         self.img_sub = rospy.Subscriber("/camera/depth/image_rect_raw", Image, self.img_callback)
         self.pcd = o3d.geometry.PointCloud()
 
+        self.height = -1
+        self.width = -1
+
         self.pub = rospy.Publisher('/rs_point_cloud', PointCloud2, queue_size=1000)
         self.FIELDS_XYZ = [PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
                            PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
@@ -34,12 +37,13 @@ class rs2o3d():
 
 
     def img_callback(self, data):
-        height = data.height
-        width = data.width
-        np_cloud = np.zeros((height*width,3))
-        for iy in range(height):
-            for ix in range(width):
-                idx = iy*width+ix
+        self.height = data.height
+        self.width = data.width
+
+        np_cloud = np.zeros((self.height*self.width,3))
+        for iy in range(self.height):
+            for ix in range(self.width):
+                idx = iy*self.width+ix
                 z = (data.data[idx*2+1]*256+data.data[idx*2])/1000.0
                 if z!=0:
                     ## x, y are on the camera plane, z is the depth
@@ -84,7 +88,14 @@ if __name__ == '__main__':
     while rs.is_data_updated==False:
         rospy.spin()
 
+    print(rs.width)
+    print(rs.height)
+
     # o3d.io.write_point_cloud("./workspace.pcd", rs.pcd)
 
     # rate = rospy.Rate(10)
-    o3d.visualization.draw_geometries([rs.pcd])
+    o3d.visualization.draw_geometries([rs.pcd], 
+                                      front = [ -0.65968065968571199, 0.75145078346514094, 0.011964416669851093 ],
+                                      lookat = [ 3.5017595977975047, -2.1001878283924382, -0.13119255951620409 ],
+                                      up = [ 0.029056782327167463, 0.0095939528158735781, 0.99953172009204305 ],
+                                      zoom=0.14)

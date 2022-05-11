@@ -10,14 +10,17 @@ from math import sin, cos, pi
 
 import open3d as o3d
 
+import cv2
+
 def draw_registration_result(source, target, transformation):
     source_temp = copy.deepcopy(source)
     target_temp = copy.deepcopy(target)
     source_temp.paint_uniform_color([1, 0.706, 0])
     target_temp.paint_uniform_color([0, 0.651, 0.929])
     source_temp.transform(transformation)
-    o3d.visualization.draw_geometries([source_temp, target_temp])
-
+    o3d.visualization.draw_geometries([source_temp, target_temp], 
+                                      zoom=0.7, front=[-0.85, 0.5, 0.12], 
+                                      lookat=[0.67,0.22,0], up=[0,0,1], left=1680)
 
 class rod_finder():
     def __init__(self,downsample_size = 0.005, eps=0.05, min_points=10, cluster_size = 500):
@@ -42,13 +45,16 @@ class rod_finder():
 
         self.rod_template.points = o3d.utility.Vector3dVector(obj_np_cloud)
 
-    def find_rod(self, raw_pcd, ws_distance):
+    def find_rod(self, raw_pcd, img, ws_distance):
         ## pcd is the raw point cloud data
         ## 1. based on the workspace distacne, 
         ## remove point cloud outside that distance
         ## ws_distance, measured in meters
 
         print("Finding the rod...")
+
+        ## ================
+        ## 1. Remove points that beyond the robot
         raw_array = np.asarray(raw_pcd.points)
 
         ws_array = []
@@ -61,10 +67,12 @@ class rod_finder():
         ws_pcd = o3d.geometry.PointCloud()
         ws_pcd.points = o3d.utility.Vector3dVector(np.asarray(ws_array))
 
-        ## downsample pcd for clustering to reduce the computational load
+        ## ================
+        ## 2. Downsample pcd for clustering to reduce the computational load
         ds_pcd = ws_pcd.voxel_down_sample(voxel_size=self.downsample_size)
 
-        ## Apply DBSCAN here
+        ## ================
+        ## 3. Apply DBSCAN clustering
         with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug) as cm:
             labels = np.array(ds_pcd.cluster_dbscan(eps=self.eps, min_points=self.min_points, print_progress=True))
 
@@ -74,10 +82,10 @@ class rod_finder():
         #colors[labels < 0] = 0
         #ds_pcd.colors = o3d.utility.Vector3dVector(colors[:, :3])
 
-
-        ## Select only the front most cluster as the rod/object
-        ## first value: number of points assigned to the label
-        ## second value: x distance (depth) associated with this label
+        ## ===============
+        ## 4. Select only the front most cluster as the rod/object
+        ##    first value: number of points assigned to the label
+        ##    second value: x distance (depth) associated with this label
         dist_sum = np.zeros(((max_label+1), 2))
         
         for idx, val in enumerate(labels):
@@ -87,7 +95,7 @@ class rod_finder():
         selected = 0
         min_dist = 10.0e6
         for i in range(max_label+1):
-            # must include more than 500 points (to avoid rope fragments)
+            ## must include more than 500 points (to avoid rope fragments)
             if (dist_sum[i,0] > self.cluster_size):
                 dist = dist_sum[i,1]/dist_sum[i,0]
                 # print(dist)
@@ -108,7 +116,8 @@ class rod_finder():
 
         selected_pcd.points = o3d.utility.Vector3dVector(np.asarray(selected_array))
 
-        ## Get the geometric center of the cluster
+        ## ================
+        ## 5. Get the geometric center of the cluster
         ## TODO: replace with OpenCV rectangle regconition to get a more accurate center.
         cluster_center = [0.0, 0.0, 0.0]
         for i in range(len(selected_pcd.points)):
@@ -119,8 +128,12 @@ class rod_finder():
         for i in range(3):
             cluster_center[i] = cluster_center[i]/len(selected_pcd.points)
 
+        ## ===============
+        ## 6. Create a cylinder template for ICP
         self.create_cylinder_template(r=20/1000.0, l=200/1000.0)
 
+        ## ===============
+        ## 7. Apply ICP to register the rod's pose
         target = selected_pcd
         source = self.rod_template
         threshold = 0.02
