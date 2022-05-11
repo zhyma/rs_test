@@ -2,13 +2,13 @@
 # Run this first: `roslaunch realsense2_camera rs_camera.launch`
 
 import sys
-import rospy
+import copy
+import time
+
 import numpy as np
 from math import sin, cos, pi
 
-import time
-
-from math import pi
+import rospy
 
 from sensor_msgs.msg import Image, CameraInfo, PointCloud2, PointField
 from std_msgs.msg import Header
@@ -18,7 +18,7 @@ import open3d as o3d
 
 #from lib_cloud_conversion_between_Open3D_and_ROS import convertCloudFromOpen3dToRos
 
-class rs2pc():
+class rs2o3d():
     def __init__(self):
         self.is_k_empty = True
         self.is_data_updated = False
@@ -69,56 +69,22 @@ class rs2pc():
                 self.k[i] = data.K[i]
             self.is_k_empty = False
 
-class rod_finder():
-    def __init__(self):
-        self.rod_template = o3d.geometry.PointCloud()
-        self.create_half_cylinder()
-
-    def create_half_cylinder(self):
-        t = 60
-        r = 20
-        l = 200
-        np_cloud = np.zeros((t*l,3))
-        for il in range(l):
-            for it in range(t):
-                idx = il*t+it
-
-                np_cloud[idx][0] = r*cos(it*pi/t)
-                np_cloud[idx][1] = r*sin(it*pi/t)
-                np_cloud[idx][2] = il
-
-        self.rod_template.points = o3d.utility.Vector3dVector(np_cloud)
-
-    def find_rod(self, source, target):
-        thershold = 100
-        trans_init = np.eye(4)
-        ...
 
 
-def main():
-    rs = rs2pc()
-    # rf = rod_finder()
+if __name__ == '__main__':
+    rs = rs2o3d()
 
     rospy.init_node('rs2icp', anonymous=True)
     rospy.sleep(1)
 
     rospy.sleep(3)
+
+    ## find ar_marker_90 first
+
     while rs.is_data_updated==False:
         rospy.spin()
 
-    o3d.io.write_point_cloud("./workspace.pcd", rs.pcd)
+    # o3d.io.write_point_cloud("./workspace.pcd", rs.pcd)
 
     # rate = rospy.Rate(10)
-    # o3d.visualization.draw_geometries([rf.rod_template])
-
-    # while not rospy.is_shutdown():
-    #     # print(rs.k)
-    #     o3d.visualization.draw_geometries([rs.pcd])
-    #     rate.sleep()
-    # #     rospy.sleep(1)
-    # #     #rospy.spin()
-
-
-if __name__ == '__main__':
-    
-    main()
+    o3d.visualization.draw_geometries([rs.pcd])
