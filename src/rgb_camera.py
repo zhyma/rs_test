@@ -31,7 +31,7 @@ class image_converter:
 
     # cv2.imshow("Image window", cv_image)
     # cv2.waitKey(3)
-    # print(cv_image.shape)
+    # print(self.cv_image.shape)
 
     # try:
     #   self.image_pub.publish(self.bridge.cv2_to_imgmsg(cv_image, "bgr8"))

@@ -22,6 +22,36 @@ def draw_registration_result(source, target, transformation):
                                       zoom=0.7, front=[-0.85, 0.5, 0.12], 
                                       lookat=[0.67,0.22,0], up=[0,0,1], left=1680)
 
+class object_projection():
+    def __init__(self, pc_array, img):
+        ## ================
+        ## image plane
+        ## NW(x0,y0)----NE(x1,y0)
+        ##  |              |
+        ## SW(x1,y0)----SE(x1,y1)
+        self.img_x0 = 10e6
+        self.img_x1 = 0
+        self.img_y0 = 10e6
+        self.img_y1 = 0
+
+        ## ================
+        ## selected point cloud
+        self.selected_x_min = 10e6
+        self.selected_x_max = -10e6
+        self.selected_y_min = 10e6
+        self.selected_y_max = -10e6
+        self.selected_z_min = 10e6
+        self.selected_z_max = -10e6
+
+        self.img = img
+        self.pcd = pcd
+
+    def space2img():
+        ## `/camera/depth/image_rect_raw` coordinate
+        ## y (left & right), z (up & down) are on the camera plane, x is the depth
+        ...
+
+
 class rod_finder():
     def __init__(self,downsample_size = 0.005, eps=0.05, min_points=10, cluster_size = 500):
         self.rod_template = o3d.geometry.PointCloud()
@@ -56,6 +86,7 @@ class rod_finder():
         ## ================
         ## 1. Remove points that beyond the robot
         raw_array = np.asarray(raw_pcd.points)
+        op = object_projection(img, raw_array)
 
         ws_array = []
         for i in range(raw_array.shape[0]):
@@ -114,11 +145,32 @@ class rod_finder():
                 selected_array[cnt,2] = ds_pcd.points[idx][2]
                 cnt += 1
 
+
+                if ds_pcd.points[idx][0] < op.selected_x_min:
+                    op.selected_x_min = ds_pcd.points[idx][0]
+                if ds_pcd.points[idx][0] > op.selected_x_max:
+                    op.selected_x_max = ds_pcd.points[idx][0]
+                if ds_pcd.points[idx][1] < op.selected_y_min:
+                    op.selected_y_min = ds_pcd.points[idx][1]
+                if ds_pcd.points[idx][1] > op.selected_y_max:
+                    op.selected_y_max = ds_pcd.points[idx][1]
+                if ds_pcd.points[idx][2] < op.selected_z_min:
+                    op.selected_z_min = ds_pcd.points[idx][2]
+                if ds_pcd.points[idx][2] > op.selected_z_max:
+                    op.selected_z_max = ds_pcd.points[idx][2]
+
         selected_pcd.points = o3d.utility.Vector3dVector(np.asarray(selected_array))
 
         ## ================
-        ## 5. Get the geometric center of the cluster
+        ## 5. Get the geometric information of the cluster
         ## TODO: replace with OpenCV rectangle regconition to get a more accurate center.
+        
+        print(op.selected_x_min)
+        print(op.selected_x_max)
+        print(op.selected_y_min)
+        print(op.selected_y_max)
+
+
         cluster_center = [0.0, 0.0, 0.0]
         for i in range(len(selected_pcd.points)):
             cluster_center[0] += selected_pcd.points[i][0]
