@@ -7,50 +7,27 @@ import time
 
 import numpy as np
 from math import sin, cos, pi
+import matplotlib.pyplot as plt
 
 import open3d as o3d
 
 import cv2
+import sys
+sys.path.append('../')
+from utils.rgb_extract import object_mask
 
 def draw_registration_result(source, target, transformation):
     source_temp = copy.deepcopy(source)
     target_temp = copy.deepcopy(target)
     source_temp.paint_uniform_color([1, 0.706, 0])
-    target_temp.paint_uniform_color([0, 0.651, 0.929])
+    # target_temp.paint_uniform_color([0, 0.651, 0.929])
     source_temp.transform(transformation)
+    # o3d.visualization.draw_geometries([source_temp, target_temp], 
+    #                                   zoom=0.7, front=[-0.85, 0.5, 0.12], 
+    #                                   lookat=[0.67,0.22,0], up=[0,0,1], left=1680)
     o3d.visualization.draw_geometries([source_temp, target_temp], 
                                       zoom=0.7, front=[-0.85, 0.5, 0.12], 
-                                      lookat=[0.67,0.22,0], up=[0,0,1], left=1680)
-
-class object_projection():
-    def __init__(self, pc_array, img):
-        ## ================
-        ## image plane
-        ## NW(x0,y0)----NE(x1,y0)
-        ##  |              |
-        ## SW(x1,y0)----SE(x1,y1)
-        self.img_x0 = 10e6
-        self.img_x1 = 0
-        self.img_y0 = 10e6
-        self.img_y1 = 0
-
-        ## ================
-        ## selected point cloud
-        self.selected_x_min = 10e6
-        self.selected_x_max = -10e6
-        self.selected_y_min = 10e6
-        self.selected_y_max = -10e6
-        self.selected_z_min = 10e6
-        self.selected_z_max = -10e6
-
-        self.img = img
-        self.pcd = pcd
-
-    def space2img():
-        ## `/camera/depth/image_rect_raw` coordinate
-        ## y (left & right), z (up & down) are on the camera plane, x is the depth
-        ...
-
+                                      lookat=[0.67,0.22,0], up=[0,0,1])
 
 class rod_finder():
     def __init__(self,downsample_size = 0.005, eps=0.05, min_points=10, cluster_size = 500):
@@ -86,17 +63,24 @@ class rod_finder():
         ## ================
         ## 1. Remove points that beyond the robot
         raw_array = np.asarray(raw_pcd.points)
-        op = object_projection(img, raw_array)
+        self.om = object_mask(raw_array, img, mask_color=(255,255,255))
+        print(raw_array.shape)
+
+        color = np.resize(img, (img.shape[0]*img.shape[1],3))/255.0
+        raw_pcd.colors = o3d.utility.Vector3dVector(color)
 
         ws_array = []
+        ws_color = []
         for i in range(raw_array.shape[0]):
             # x is the depth direction in RealSense coordiante
             # if env_cloud[i][0] < 850/1000.0:
             if raw_array[i][0] < ws_distance:
                 ws_array.append([raw_array[i][0], raw_array[i][1], raw_array[i][2]])
+                ws_color.append([color[i][2], color[i][1], color[i][0]])
 
         ws_pcd = o3d.geometry.PointCloud()
         ws_pcd.points = o3d.utility.Vector3dVector(np.asarray(ws_array))
+        ws_pcd.colors = o3d.utility.Vector3dVector(ws_color)
 
         ## ================
         ## 2. Downsample pcd for clustering to reduce the computational load
@@ -108,9 +92,10 @@ class rod_finder():
             labels = np.array(ds_pcd.cluster_dbscan(eps=self.eps, min_points=self.min_points, print_progress=True))
 
         max_label = labels.max()
-        #print(f"point cloud has {max_label + 1} clusters")
-        #colors = plt.get_cmap("tab20")(labels / (max_label if max_label > 0 else 1))
-        #colors[labels < 0] = 0
+        # print(f"point cloud has {max_label + 1} clusters")
+        # colors = plt.get_cmap("tab20")(labels / (max_label if max_label > 0 else 1))
+        # colors[labels < 0] = 0
+        # print(colors.shape)
         #ds_pcd.colors = o3d.utility.Vector3dVector(colors[:, :3])
 
         ## ===============
@@ -145,19 +130,19 @@ class rod_finder():
                 selected_array[cnt,2] = ds_pcd.points[idx][2]
                 cnt += 1
 
-
-                if ds_pcd.points[idx][0] < op.selected_x_min:
-                    op.selected_x_min = ds_pcd.points[idx][0]
-                if ds_pcd.points[idx][0] > op.selected_x_max:
-                    op.selected_x_max = ds_pcd.points[idx][0]
-                if ds_pcd.points[idx][1] < op.selected_y_min:
-                    op.selected_y_min = ds_pcd.points[idx][1]
-                if ds_pcd.points[idx][1] > op.selected_y_max:
-                    op.selected_y_max = ds_pcd.points[idx][1]
-                if ds_pcd.points[idx][2] < op.selected_z_min:
-                    op.selected_z_min = ds_pcd.points[idx][2]
-                if ds_pcd.points[idx][2] > op.selected_z_max:
-                    op.selected_z_max = ds_pcd.points[idx][2]
+                # creating a 3D bounding box for the rod
+                if ds_pcd.points[idx][0] < self.om.x_min:
+                    self.om.x_min = ds_pcd.points[idx][0]
+                if ds_pcd.points[idx][0] > self.om.x_max:
+                    self.om.x_max = ds_pcd.points[idx][0]
+                if ds_pcd.points[idx][1] < self.om.y_min:
+                    self.om.y_min = ds_pcd.points[idx][1]
+                if ds_pcd.points[idx][1] > self.om.y_max:
+                    self.om.y_max = ds_pcd.points[idx][1]
+                if ds_pcd.points[idx][2] < self.om.z_min:
+                    self.om.z_min = ds_pcd.points[idx][2]
+                if ds_pcd.points[idx][2] > self.om.z_max:
+                    self.om.z_max = ds_pcd.points[idx][2]
 
         selected_pcd.points = o3d.utility.Vector3dVector(np.asarray(selected_array))
 
@@ -165,11 +150,14 @@ class rod_finder():
         ## 5. Get the geometric information of the cluster
         ## TODO: replace with OpenCV rectangle regconition to get a more accurate center.
         
-        print(op.selected_x_min)
-        print(op.selected_x_max)
-        print(op.selected_y_min)
-        print(op.selected_y_max)
+        print(self.om.x_min)
+        print(self.om.x_max)
+        print(self.om.y_min)
+        print(self.om.y_max)
+        print(self.om.z_min)
+        print(self.om.z_max)
 
+        self.om.apply_mask()
 
         cluster_center = [0.0, 0.0, 0.0]
         for i in range(len(selected_pcd.points)):
@@ -202,5 +190,6 @@ class rod_finder():
         print("Transformation is:")
         print(reg_p2p.transformation)
         print("")
+        # draw_registration_result(source, raw_pcd, reg_p2p.transformation)
         # draw_registration_result(source, target, reg_p2p.transformation)
-        draw_registration_result(source, ds_pcd, reg_p2p.transformation)
+        draw_registration_result(source, ws_pcd, reg_p2p.transformation)
