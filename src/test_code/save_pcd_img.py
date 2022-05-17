@@ -29,7 +29,8 @@ class rs2pc():
         self.is_data_updated = False
         self.k = [0]*9 # camera's intrinsic parameters
         self.cam_sub = rospy.Subscriber("/camera/depth/camera_info", CameraInfo, self.cam_info_callback)
-        self.img_sub = rospy.Subscriber("/camera/depth/image_rect_raw", Image, self.img_callback)
+        # self.img_sub = rospy.Subscriber("/camera/depth/image_rect_raw", Image, self.img_callback)
+        self.img_sub = rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.img_callback)
         self.pcd = o3d.geometry.PointCloud()
 
         self.pub = rospy.Publisher('/rs_point_cloud', PointCloud2, queue_size=1000)
