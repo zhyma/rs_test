@@ -12,9 +12,9 @@ import cv2
 ## the default function
 def main():
     import rospy
-    from rs2o3d import rs2o3d
-    from workspace_tf import workspace_tf
-    from rgb_camera import image_converter
+    from utils.rs2o3d import rs2o3d
+    from utils.workspace_tf import workspace_tf
+    from utils.rgb_camera import image_converter
 
     rospy.init_node('rs2icp', anonymous=True)
     rate = rospy.Rate(10)
@@ -28,12 +28,18 @@ def main():
     while rs.is_data_updated==False:
         rate.sleep()
 
+    print("depth_data_ready")
+
     while ws_tf.tf_updated==False:
         ws_tf.get_tf()
         rate.sleep()
 
+    print("tf_data_ready")
+
     while ic.has_data==False:
         rate.sleep()
+
+    print("rgb_data_ready")
 
     ws_distance = ws_tf.trans[0]
     print(ws_distance)

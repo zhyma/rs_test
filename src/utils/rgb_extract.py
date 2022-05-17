@@ -50,17 +50,25 @@ class object_mask():
                 if (p[0] > self.x_min) and (p[0] < self.x_max) and \
                    (p[1] > self.y_min) and (p[1] < self.y_max) and \
                    (p[2] > self.z_min) and (p[2] < self.z_max):
-                    ## keep the color
-                    pass
-                else:
-                    self.masked_img[iy, ix, 0] = self.mask_color[0]
-                    self.masked_img[iy, ix, 1] = self.mask_color[1]
+                    ## selected area, keep the color
+                    # self.masked_img[iy, ix, 0] = self.mask_color[0]
+                    # self.masked_img[iy, ix, 1] = self.mask_color[1]
                     self.masked_img[iy, ix, 2] = self.mask_color[2]
                     pass
+                else:
+                    ## areas taken as background
+                    # self.masked_img[iy, ix, 0] = self.mask_color[0]
+                    # self.masked_img[iy, ix, 1] = self.mask_color[1]
+                    # self.masked_img[iy, ix, 2] = self.mask_color[2]
+                    pass
 
-        # cv2.imshow('image', self.masked_img)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        cv2.imshow('image', self.masked_img)
+        show_window = True
+        while show_window:
+            k = cv2.waitKey(0) & 0xFF
+            if k == 27:#ESC
+                cv2.destroyAllWindows()
+                show_window = False
 
     def img_dilation(self):
         ...

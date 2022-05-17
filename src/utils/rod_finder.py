@@ -64,30 +64,32 @@ class rod_finder():
         ## 1. Remove points that beyond the robot
         raw_array = np.asarray(raw_pcd.points)
         self.om = object_mask(raw_array, img, mask_color=(255,255,255))
-        print(raw_array.shape)
+        # print(raw_array.shape)
 
-        color = np.resize(img, (img.shape[0]*img.shape[1],3))/255.0
-        raw_pcd.colors = o3d.utility.Vector3dVector(color)
+        # color = np.resize(img, (img.shape[0]*img.shape[1],3))/255.0
+        # raw_pcd.colors = o3d.utility.Vector3dVector(color)
 
         ws_array = []
-        ws_color = []
+        # ws_color = []
         for i in range(raw_array.shape[0]):
             # x is the depth direction in RealSense coordiante
             # if env_cloud[i][0] < 850/1000.0:
             if raw_array[i][0] < ws_distance:
                 ws_array.append([raw_array[i][0], raw_array[i][1], raw_array[i][2]])
-                ws_color.append([color[i][2], color[i][1], color[i][0]])
+                # ws_color.append([color[i][2], color[i][1], color[i][0]])
 
         ws_pcd = o3d.geometry.PointCloud()
         ws_pcd.points = o3d.utility.Vector3dVector(np.asarray(ws_array))
-        ws_pcd.colors = o3d.utility.Vector3dVector(ws_color)
+        # ws_pcd.colors = o3d.utility.Vector3dVector(ws_color)
 
         ## ================
         ## 2. Downsample pcd for clustering to reduce the computational load
+        print('Downsample...')
         ds_pcd = ws_pcd.voxel_down_sample(voxel_size=self.downsample_size)
 
         ## ================
         ## 3. Apply DBSCAN clustering
+        print('DBSCAN...')
         with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug) as cm:
             labels = np.array(ds_pcd.cluster_dbscan(eps=self.eps, min_points=self.min_points, print_progress=True))
 

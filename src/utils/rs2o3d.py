@@ -24,7 +24,9 @@ class rs2o3d():
         self.is_data_updated = False
         self.k = [0]*9 # camera's intrinsic parameters
         self.cam_sub = rospy.Subscriber("/camera/depth/camera_info", CameraInfo, self.cam_info_callback)
-        self.img_sub = rospy.Subscriber("/camera/depth/image_rect_raw", Image, self.img_callback)
+        # self.img_sub = rospy.Subscriber("/camera/depth/image_rect_raw", Image, self.img_callback)
+        ## need parameter `align_depth:=true`
+        self.img_sub = rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.img_callback)
         self.pcd = o3d.geometry.PointCloud()
 
         self.height = -1
@@ -41,6 +43,7 @@ class rs2o3d():
         self.width = data.width
 
         np_cloud = np.zeros((self.height*self.width,3))
+        # print(self.k)
         for iy in range(self.height):
             for ix in range(self.width):
                 idx = iy*self.width+ix
