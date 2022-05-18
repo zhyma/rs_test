@@ -59,6 +59,7 @@ class rod_finder():
         ## ws_distance, measured in meters
 
         print("Finding the rod...")
+        colorized = True
 
         ## ================
         ## 1. Remove points that beyond the robot
@@ -66,21 +67,24 @@ class rod_finder():
         self.om = object_mask(raw_array, img, mask_color=(255,255,255))
         # print(raw_array.shape)
 
-        # color = np.resize(img, (img.shape[0]*img.shape[1],3))/255.0
-        # raw_pcd.colors = o3d.utility.Vector3dVector(color)
+        if colorized:
+            color = np.resize(img, (img.shape[0]*img.shape[1],3))/255.0
+            raw_pcd.colors = o3d.utility.Vector3dVector(color)
 
         ws_array = []
-        # ws_color = []
+        ws_color = []
         for i in range(raw_array.shape[0]):
-            # x is the depth direction in RealSense coordiante
+            ## x is the depth direction in RealSense coordiante
             # if env_cloud[i][0] < 850/1000.0:
             if raw_array[i][0] < ws_distance:
                 ws_array.append([raw_array[i][0], raw_array[i][1], raw_array[i][2]])
-                # ws_color.append([color[i][2], color[i][1], color[i][0]])
+                if colorized:
+                    ws_color.append([color[i][2], color[i][1], color[i][0]])
 
         ws_pcd = o3d.geometry.PointCloud()
         ws_pcd.points = o3d.utility.Vector3dVector(np.asarray(ws_array))
-        # ws_pcd.colors = o3d.utility.Vector3dVector(ws_color)
+        if colorized:
+            ws_pcd.colors = o3d.utility.Vector3dVector(ws_color)
 
         ## ================
         ## 2. Downsample pcd for clustering to reduce the computational load
@@ -160,6 +164,7 @@ class rod_finder():
         print(self.om.z_max)
 
         self.om.apply_mask()
+        self.om.extract_rod()
 
         cluster_center = [0.0, 0.0, 0.0]
         for i in range(len(selected_pcd.points)):
@@ -192,6 +197,6 @@ class rod_finder():
         print("Transformation is:")
         print(reg_p2p.transformation)
         print("")
-        # draw_registration_result(source, raw_pcd, reg_p2p.transformation)
-        # draw_registration_result(source, target, reg_p2p.transformation)
-        draw_registration_result(source, ws_pcd, reg_p2p.transformation)
+        # # draw_registration_result(source, raw_pcd, reg_p2p.transformation)
+        # # draw_registration_result(source, target, reg_p2p.transformation)
+        # draw_registration_result(source, ws_pcd, reg_p2p.transformation)
