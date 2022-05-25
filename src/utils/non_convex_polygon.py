@@ -107,9 +107,10 @@ def largest_rect_in_non_convex_poly(src, thumbnail_size = -1):
     height = bbox[3]
 
     if width%2==1:
-        width += 1
+        width -= 1
+    ## height += 1 may leads to a y+height > 720 case 
     if height%2==1:
-        height += 1
+        height -= 1
 
     maxdim = max(width, height)
     work = np.zeros([2*maxdim, 2*maxdim])

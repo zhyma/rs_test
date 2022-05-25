@@ -22,7 +22,7 @@ def draw_registration_result(source, target, transformation, additional_pcd = []
     source_temp.paint_uniform_color([1, 0.706, 0])
     # target_temp.paint_uniform_color([0, 0.651, 0.929])
     source_temp.transform(transformation)
-    # o3d.visualization.draw_geometries([source_temp, target_temp], 
+    # o3d.visualization.draw_geometries([source_temp, target_temp]+additional_pcd, 
     #                                   zoom=0.7, front=[-0.85, 0.5, 0.12], 
     #                                   lookat=[0.67,0.22,0], up=[0,0,1], left=1680)
     o3d.visualization.draw_geometries([source_temp, target_temp]+additional_pcd, 
@@ -125,7 +125,7 @@ class rod_finder():
         ws_pcd = o3d.geometry.PointCloud()
         ws_pcd.points = o3d.utility.Vector3dVector(np.asarray(ws_array))
         if colorized:
-            ws_pcd.colors = o3d.utility.Vector3dVector(ws_color)
+            ws_pcd.colors = o3d.utility.Vector3dVector(np.array(ws_color, dtype=np.float64))
 
         ## ================
         ## 2. Downsample pcd for clustering to reduce the computational load
