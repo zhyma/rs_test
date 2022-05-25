@@ -6,7 +6,7 @@ import copy
 import time
 
 import numpy as np
-from math import sin, cos, pi
+from math import sin, cos, pi, sqrt
 import matplotlib.pyplot as plt
 
 import open3d as o3d
@@ -16,7 +16,7 @@ import sys
 sys.path.append('../')
 from utils.rgb_extract import object_mask
 
-def draw_registration_result(source, target, transformation):
+def draw_registration_result(source, target, transformation, additional_pcd = []):
     source_temp = copy.deepcopy(source)
     target_temp = copy.deepcopy(target)
     source_temp.paint_uniform_color([1, 0.706, 0])
@@ -25,17 +25,19 @@ def draw_registration_result(source, target, transformation):
     # o3d.visualization.draw_geometries([source_temp, target_temp], 
     #                                   zoom=0.7, front=[-0.85, 0.5, 0.12], 
     #                                   lookat=[0.67,0.22,0], up=[0,0,1], left=1680)
-    o3d.visualization.draw_geometries([source_temp, target_temp], 
+    o3d.visualization.draw_geometries([source_temp, target_temp]+additional_pcd, 
                                       zoom=0.7, front=[-0.85, 0.5, 0.12], 
                                       lookat=[0.67,0.22,0], up=[0,0,1])
 
 class rod_finder():
-    def __init__(self,downsample_size = 0.005, eps=0.05, min_points=10, cluster_size = 500):
+    def __init__(self,downsample_size = 0.005, eps=0.05, min_points=10, min_cluster_size = 500):
         self.rod_template = o3d.geometry.PointCloud()
         self.downsample_size = downsample_size
+        ## DBSCAN parameters
         self.eps = eps
         self.min_points = min_points
-        self.cluster_size = cluster_size
+        ## only pick those relatively larger cluster (including the rod)
+        self.min_cluster_size = min_cluster_size
 
     def create_cylinder_template(self, r=20/1000.0, l=200/1000.0):
         ## create a rod template here
@@ -48,9 +50,49 @@ class rod_finder():
 
                 obj_np_cloud[idx][2] = r*cos(it*pi/t_theta)
                 obj_np_cloud[idx][0] = -r*sin(it*pi/t_theta)
-                obj_np_cloud[idx][1] = il/1000.0
+                obj_np_cloud[idx][1] = il/1000.0 - l/2
 
         self.rod_template.points = o3d.utility.Vector3dVector(obj_np_cloud)
+
+    def find_corner(self, box, p, max_dist):
+        ## give a point in projected pixel frame, find the closest point in 3D space
+        ## use Manhattan distance in pixel frame
+        for i in range(1,max_dist+1):
+            for dy in range(-i, i+1):
+                dx = i-abs(dy)
+                ## Check if the 2D point is inside of the 2D mask
+                x = int(p[0]+dx)
+                y = int(p[1]+dy)
+                if cv2.pointPolygonTest(box, (x,y), False) >= 0:
+                    ## Check if the 3D point is inside of the labeled area
+                    idx = y * self.width + x
+                    pt_3d = self.raw_array[idx]
+                    if (pt_3d[0] > self.om.x_min) and (pt_3d[0] < self.om.x_max) and \
+                       (pt_3d[1] > self.om.y_min) and (pt_3d[1] < self.om.y_max) and \
+                       (pt_3d[2] > self.om.z_min) and (pt_3d[2] < self.om.z_max):
+
+                       return pt_3d
+
+                ## check the other direction
+                dx = -(i-abs(dy))
+                ## Check if the 2D point is inside of the 2D mask
+                x = int(p[0]+dx)
+                y = int(p[1]+dy)
+                if cv2.pointPolygonTest(box, (x,y), False) >= 0:
+                    ## Check if the 3D point is inside of the labeled area
+                    idx = y * self.width + x
+                    pt_3d = self.raw_array[idx]
+                    if (pt_3d[0] > self.om.x_min) and (pt_3d[0] < self.om.x_max) and \
+                       (pt_3d[1] > self.om.y_min) and (pt_3d[1] < self.om.y_max) and \
+                       (pt_3d[2] > self.om.z_min) and (pt_3d[2] < self.om.z_max):
+
+                       return pt_3d
+
+        ## nothing found
+        return (-1, -1, -1)
+
+    def dist_3d(self, p1, p2):
+        return sqrt((p1[0]-p2[0])**2+(p1[1]-p2[1])**2+(p1[2]-p2[2])**2)
 
     def find_rod(self, raw_pcd, img, ws_distance):
         ## pcd is the raw point cloud data
@@ -63,8 +105,8 @@ class rod_finder():
 
         ## ================
         ## 1. Remove points that beyond the robot
-        raw_array = np.asarray(raw_pcd.points)
-        self.om = object_mask(raw_array, img, mask_color=(255,255,255))
+        self.raw_array = np.asarray(raw_pcd.points)
+        self.om = object_mask(self.raw_array, img, mask_color=(255,255,255))
         # print(raw_array.shape)
 
         if colorized:
@@ -73,11 +115,10 @@ class rod_finder():
 
         ws_array = []
         ws_color = []
-        for i in range(raw_array.shape[0]):
+        for i in range(self.raw_array.shape[0]):
             ## x is the depth direction in RealSense coordiante
-            # if env_cloud[i][0] < 850/1000.0:
-            if raw_array[i][0] < ws_distance:
-                ws_array.append([raw_array[i][0], raw_array[i][1], raw_array[i][2]])
+            if self.raw_array[i][0] < ws_distance:
+                ws_array.append([self.raw_array[i][0], self.raw_array[i][1], self.raw_array[i][2]])
                 if colorized:
                     ws_color.append([color[i][2], color[i][1], color[i][0]])
 
@@ -95,7 +136,7 @@ class rod_finder():
         ## 3. Apply DBSCAN clustering
         print('DBSCAN...')
         with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug) as cm:
-            labels = np.array(ds_pcd.cluster_dbscan(eps=self.eps, min_points=self.min_points, print_progress=True))
+            labels = np.array(ds_pcd.cluster_dbscan(eps=self.eps, min_points=self.min_points, print_progress=False))
 
         max_label = labels.max()
         # print(f"point cloud has {max_label + 1} clusters")
@@ -118,7 +159,7 @@ class rod_finder():
         min_dist = 10.0e6
         for i in range(max_label+1):
             ## must include more than 500 points (to avoid rope fragments)
-            if (dist_sum[i,0] > self.cluster_size):
+            if (dist_sum[i,0] > self.min_cluster_size):
                 dist = dist_sum[i,1]/dist_sum[i,0]
                 # print(dist)
                 if dist < min_dist:
@@ -155,29 +196,38 @@ class rod_finder():
         ## ================
         ## 5. Get the geometric information of the cluster
         ## TODO: replace with OpenCV rectangle regconition to get a more accurate center.
-        
-        print(self.om.x_min)
-        print(self.om.x_max)
-        print(self.om.y_min)
-        print(self.om.y_max)
-        print(self.om.z_min)
-        print(self.om.z_max)
 
-        self.om.apply_mask()
-        self.om.extract_rod()
+        self.om.apply_pc_mask()
+        ## (center(x, y), (width, height), angle of rotation) = cv2.minAreaRect(points)
+        rect = self.om.extract_rod()
+        self.width = img.shape[1]
+        self.height = img.shape[0]
 
-        cluster_center = [0.0, 0.0, 0.0]
-        for i in range(len(selected_pcd.points)):
-            cluster_center[0] += selected_pcd.points[i][0]
-            cluster_center[1] += selected_pcd.points[i][1]
-            cluster_center[2] += selected_pcd.points[i][2]
+        ## estimate the dimension of the rod
+        ## get four corner points of the box
+        box = np.int0(cv2.boxPoints(rect))
+        p = []
+        for i in box:
+            p.append(self.find_corner(box, i, 10))
+        # p = self.find_corner(box, box[0], 10)
+        l1 = self.dist_3d(p[0], p[1])
+        l2 = self.dist_3d(p[1], p[2])
 
-        for i in range(3):
-            cluster_center[i] = cluster_center[i]/len(selected_pcd.points)
+        d = 0
+        r = 0
+        if l1 > l2:
+            d = l1
+            r = l2/2
+        else:
+            d = l2
+            r = l1/2
+
+        ## estimate the center of the rod
+        cluster_center = (p[0]+p[1]+p[2]+p[3])/4.0
 
         ## ===============
         ## 6. Create a cylinder template for ICP
-        self.create_cylinder_template(r=20/1000.0, l=200/1000.0)
+        self.create_cylinder_template(r=r, l=d)
 
         ## ===============
         ## 7. Apply ICP to register the rod's pose
@@ -199,4 +249,5 @@ class rod_finder():
         print("")
         # # draw_registration_result(source, raw_pcd, reg_p2p.transformation)
         # # draw_registration_result(source, target, reg_p2p.transformation)
-        # draw_registration_result(source, ws_pcd, reg_p2p.transformation)
+        axis_pcd = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1, origin=cluster_center)
+        draw_registration_result(source, ws_pcd, reg_p2p.transformation, [axis_pcd])

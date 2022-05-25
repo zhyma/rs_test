@@ -14,6 +14,9 @@ import open3d as o3d
 
 import cv2
 
+sys.path.append('../')
+import utils.non_convex_polygon as ncp
+
 def display_img(img):
     cv2.imshow('image', img)
     show_window = True
@@ -22,6 +25,10 @@ def display_img(img):
         if k == 27:#ESC
             cv2.destroyAllWindows()
             show_window = False
+
+def cluster_indices(label_num, label_list):
+    # return the indices of elements of given cluster
+    return np.where(label_list == label_num)[0]
 
 class object_mask():
     def __init__(self, pc_array, img, mask_color=(0,0,0)):
@@ -48,7 +55,29 @@ class object_mask():
         self.pc_array = copy.deepcopy(pc_array)
         self.mask_color = mask_color
 
-    def apply_mask(self):
+    def otsu_with_mask(self):
+        ...
+
+    def extract_by_mask(self, src, mask):
+        for iy in range(self.height):
+            for ix in range(self.width):
+                ## Just for colorizing
+                # if self.mask[iy, ix] == 1:
+                #     ## selected area, keep the color
+                #     # self.masked_img[iy, ix, 0] = self.mask_color[0]
+                #     # self.masked_img[iy, ix, 1] = self.mask_color[1]
+                #     # self.masked_img[iy, ix, 2] = self.mask_color[2]
+                #     pass
+                # else:
+                #     ## areas taken as background
+                #     self.masked_img[iy, ix, 0] = self.mask_color[0]
+                #     self.masked_img[iy, ix, 1] = self.mask_color[1]
+                #     self.masked_img[iy, ix, 2] = self.mask_color[2]
+                #     pass
+                ...
+        ...
+
+    def apply_pc_mask(self):
         ## used the point clouds of selected cluster to extract 
         ## the rod from the RGB image.
         for iy in range(self.height):
@@ -63,101 +92,64 @@ class object_mask():
                    (p[2] > self.z_min) and (p[2] < self.z_max):
                    self.mask[iy, ix] = 1
 
-        kernel = np.ones((21, 21), dtype=np.uint8)
-        ## dilation
-        self.mask = cv2.dilate(self.mask, kernel, iterations=1)
-
-        # for iy in range(self.height):
-        #     for ix in range(self.width):
-        #         if self.mask[iy, ix] == 1:
-        #             ## selected area, keep the color
-        #             # self.masked_img[iy, ix, 0] = self.mask_color[0]
-        #             # self.masked_img[iy, ix, 1] = self.mask_color[1]
-        #             # self.masked_img[iy, ix, 2] = self.mask_color[2]
-        #             pass
-        #         else:
-        #             ## areas taken as background
-        #             self.masked_img[iy, ix, 0] = self.mask_color[0]
-        #             self.masked_img[iy, ix, 1] = self.mask_color[1]
-        #             self.masked_img[iy, ix, 2] = self.mask_color[2]
-        #             pass
-
-        
+        # kernel = np.ones((21, 21), dtype=np.uint8)
+        # ## dilation
+        # self.mask = cv2.dilate(self.mask, kernel, iterations=1)
 
     def extract_rod(self):
-        # ## use RGB to do Kmeans
-        # feature_map = []
-        # for iy in range(self.height):
-        #     for ix in range(self.width):
-        #         if self.mask[iy, ix] == 1:
-        #             feature_map.append([iy, ix, self.img[iy, ix, 0], self.img[iy, ix, 1], self.img[iy, ix, 2]])
-
-        # feature_map = np.array(feature_map)
-        # kmeans = KMeans(n_clusters = 3).fit(feature_map[:,2:5])
-
-        # use HSV to do Kmeans
+        ## Convert to HSV color space
         hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
-        # h = hsv[:,:,0]
-        # s = hsv[:,:,1]
-        # v = hsv[:,:,2]
+
+        ## Apply Gaussian filter to hue channel here?
+        # blur = cv2.GaussianBlur(hsv[:,:,0],(5,5),0)
+        
         feature_map = []
         for iy in range(self.height):
             for ix in range(self.width):
                 if self.mask[iy, ix] == 1:
                     feature_map.append([iy, ix, hsv[iy, ix, 0]])
 
-        # feature_map = np.array(temp_map, dtype=np.uint8)
         feature_map = np.array(feature_map)
-        print(feature_map.shape)
-        plt.hist(hsv[:,:,0].reshape(-1,1), 256)
-        plt.show()
 
-        # display_img(h)
-        # color_map = []
-        # for iy in range(self.height):
-        #     for ix in range(self.width):
-        #         if self.mask[iy, ix] == 1:
-        #             color_map.append(h[iy, ix, 0])
+        # ret, th = cv.threshold(blur,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU)
+        # print(feature_map.shape)
+        # plt.hist(hsv[:,:,0].reshape(-1,1), 256)
+        # plt.show()
 
-        # color_map = np.array(color_map)
-        ## 3 clusters: rod, support, residual background
-        ## https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
-        kmeans = KMeans(n_clusters = 3).fit(feature_map[:,2].reshape(-1,1))
+        ## use K-means or Otsu's method to get two clusters (object and background)
+        ## the one with the largest area is the object (rod)
+        kmeans = KMeans(n_clusters = 2).fit(feature_map[:,2].reshape(-1,1))
         centers = kmeans.cluster_centers_
 
-        clusters = np.ones((self.height, self.width, 3), dtype=np.uint8)*255
-        # for idx, value in enumerate(kmeans.labels_):
+        elements_in_cluster = []
+        elements_in_cluster.append(cluster_indices(0, kmeans.labels_))
+        elements_in_cluster.append(cluster_indices(1, kmeans.labels_))
+
+        selected_label = 0
+        if len(elements_in_cluster[0]) < len(elements_in_cluster[1]):
+            selected_label = 1
+
+        # selected_img = np.ones((self.height, self.width, 3), dtype=np.uint8)*255
+        self.mask = np.zeros((self.height, self.width), dtype=np.uint8)
         for idx, value in enumerate(feature_map):
             y = value[0]
             x = value[1]
-            clusters[y, x, 0] = hsv[y, x, 0]
-            clusters[y, x, 1] = hsv[y, x, 0]
-            clusters[y, x, 2] = hsv[y, x, 0]
-            # label = kmeans.labels_[idx]
-            # if label == 0:
-            #     clusters[y, x, 0] = int(0)
-            #     clusters[y, x, 1] = int(255)
-            #     clusters[y, x, 2] = int(255)
-            # elif label ==1:
-            #     clusters[y, x, 0] = int(255)
-            #     clusters[y, x, 1] = int(0)
-            #     clusters[y, x, 2] = int(255)
-            # else:
-            #     clusters[y, x, 0] = int(255)
-            #     clusters[y, x, 1] = int(255)
-            #     clusters[y, x, 2] = int(0)
+            label = kmeans.labels_[idx]
+            if label == selected_label:
+                self.mask[y, x] = 255
+                # selected_img[y, x, 0] = self.img[y, x, 0]
+                # selected_img[y, x, 1] = self.img[y, x, 1]
+                # selected_img[y, x, 2] = self.img[y, x, 2]
 
-        # 
-        # print(centers)
-        # for i in range(len(centers)):
-        #     print(centers[i])
-        #     y = int(centers[i][0])
-        #     x = int(centers[i][1])
-        #     print((x, y))
-        #     cv2.circle(self.img, (y,x), 5, (0, i*50, 0), thickness=10)
+        kernel = np.ones((3, 3), dtype=np.uint8)
+        ## dilation
+        self.mask = cv2.dilate(self.mask, kernel, iterations=1)
+        rect = ncp.largest_rect_in_non_convex_poly(self.mask, thumbnail_size=100)
+        # print(rect)
+        # box = cv2.boxPoints(rect)
+        # box = np.int0(box)
+        # res = cv2.cvtColor(self.mask, cv2.COLOR_GRAY2BGR)
+        # cv2.drawContours(res,[box],0,(0,0,255),1)
+        # display_img(res)
 
-        display_img(clusters)
-        ...
-
-
-        
+        return rect
