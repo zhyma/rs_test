@@ -12,11 +12,10 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   cv_bridge
+  std_msgs
+  message_generation
 )
  
- 
-catkin_package(
-)
  
 ###########
 ## Build ##
@@ -28,18 +27,34 @@ include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
 )
- 
-add_executable(rs2pcl src/rs2pcl.cpp)
- 
- 
-# PCL part?
-find_package(PCL REQUIRED)
 
-include_directories(${PCL_INCLUDE_DIRS})
-link_directories(${PCL_LIBRARY_DIRS})
-add_definitions(${PCL_DEFINITIONS})
+add_message_files(
+  FILES
+    CylinderProperties.msg
+)
 
-target_link_libraries(rs2pcl ${PCL_LIBRARIES})
+generate_messages(
+  DEPENDENCIES
+    std_msgs
+    geometry_msgs
+)
+
+catkin_package(
+  DEPENDS
+    roscpp
+  CATKIN_DEPENDS
+    message_runtime
+)
  
+#add_executable(rs2pcl src/rs2pcl.cpp)
+  
+## PCL part?
+#find_package(PCL REQUIRED)
+
+#include_directories(${PCL_INCLUDE_DIRS})
+#link_directories(${PCL_LIBRARY_DIRS})
+#add_definitions(${PCL_DEFINITIONS})
+
+#target_link_libraries(rs2pcl ${PCL_LIBRARIES})
  
-target_link_libraries(rs2pcl ${catkin_LIBRARIES})
+#target_link_libraries(rs2pcl ${catkin_LIBRARIES})
