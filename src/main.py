@@ -3,7 +3,7 @@ import copy
 
 import numpy as np
 
-from utils.rod_finder import rod_finder
+from utils.vision.rod_finder import rod_finder
 
 import open3d as o3d
 import cv2
@@ -12,14 +12,60 @@ import cv2
 ## the default function
 def main():
     import rospy
-    from utils.rs2o3d import rs2o3d
-    from utils.workspace_tf import workspace_tf
-    from utils.rgb_camera import image_converter
+    from utils.vision.rs2o3d import rs2o3d
+    from utils.vision.workspace_tf import workspace_tf
+    from utils.vision.rgb_camera import image_converter
 
-    rospy.init_node('rs2icp', anonymous=True)
+    import moveit_commander
+    from utils.robot.detect_rod      import rod_detection
+    # from utility.detect_cable    import cable_detection
+    from utils.robot.workspace_ctrl  import move_yumi
+    from utils.robot.jointspace_ctrl import joint_ctrl
+    from utils.robot.path_generator  import path_generator
+    from utils.robot.gripper_ctrl    import gripper_ctrl
+    from utils.robot.add_marker      import marker
+    # # moveit motion planning tool
+    # # from moveit.py import move_yumi
+
+    from geometry_msgs.msg import Pose
+    from transforms3d import euler
+    import moveit_msgs.msg
+
+    rospy.init_node('wrap_wrap', anonymous=True)
     rate = rospy.Rate(10)
     rospy.sleep(1)
 
+    pg = path_generator()
+    gripper = gripper_ctrl()
+    goal = marker()
+
+    ##-------------------##
+    ## initializing the moveit 
+    moveit_commander.roscpp_initialize(sys.argv)
+    scene = moveit_commander.PlanningSceneInterface()
+    robot = moveit_commander.RobotCommander()
+    ctrl_group = []
+    ctrl_group.append(moveit_commander.MoveGroupCommander('left_arm'))
+    ctrl_group.append(moveit_commander.MoveGroupCommander('right_arm'))
+
+    ## initialzing the yumi motion planner
+    yumi = move_yumi(robot, scene, ctrl_group)
+
+    ##-------------------##
+    ## reset the robot
+    gripper.l_open()
+    gripper.r_open()
+    j_ctrl = joint_ctrl(ctrl_group)
+    j_ctrl.robot_default_l_low()
+    j_ctrl.robot_default_r_low()
+
+    gripper.l_open()
+    gripper.r_open()
+
+    rospy.sleep(3)
+
+    ##-------------------##
+    ## Detect the rod in the first place
     rs = rs2o3d()
     ws_tf = workspace_tf()
     rf = rod_finder()
@@ -50,6 +96,69 @@ def main():
     #     rate.sleep()
     
     rf.find_rod(rs.pcd, img, ws_distance)
+
+    ##-------------------##
+    ## rod found, start to do the first wrap
+
+    rod.scene_add_rod(rod.rod_state)
+    ## Need time to initializing
+    rospy.sleep(3)
+
+    pose_goal = Pose()
+
+    rod_x = rod.rod_state.position.x
+    rod_y = rod.rod_state.position.y
+    rod_z = rod.rod_state.position.z
+
+    x = rod_x
+    y = 0
+    z = 0.10
+    start = [x+0.01, y + 0.1+0.25, z]
+    stop  = [x+0.01, y + 0.1, z]
+
+    goal.show(x=stop[0], y=stop[1], z=stop[2])
+
+    path = [start, stop]
+    cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
+    yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    print("go to pose have the cable in between gripper: ", end="")
+    rospy.sleep(2)
+
+    gripper.l_close()
+
+    # ## left gripper grabs the link
+    # gripper.l_close()
+
+    # ##-------------------##
+    # ## generate spiral here
+    # # s is the center of the rod
+    spiral_params = [rod_x, rod_y, rod_z]
+    # # g is the gripper's starting position
+    gripper_states = stop
+    path = pg.generate_spiral(spiral_params, gripper_states)
+    pg.publish_waypoints(path)
+
+    # path1 = path[0:len(path)//2]
+    # path2 = path[len(path)//2:]
+
+    ## motion planning and executing
+    cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
+    ## fraction < 1: not successfully planned
+    print(fraction)
+    yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    rospy.sleep(2)
+
+
+    start = path[-1]
+    stop = [start[0], start[1], 0.1]
+
+    path = [start, stop]
+    cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
+    yumi.execute_plan(cartesian_plan, ctrl_group[0])
+
+    gripper.l_open()
+    gripper.r_open()
+
 
 def test_with_files(path):
     img = cv2.imread("./"+ path +"/image.jpeg")

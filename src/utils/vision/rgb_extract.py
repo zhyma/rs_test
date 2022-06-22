@@ -14,8 +14,8 @@ import open3d as o3d
 
 import cv2
 
-sys.path.append('../')
-import utils.non_convex_polygon as ncp
+sys.path.append('../../')
+import utils.vision.non_convex_polygon as ncp
 
 def display_img(img):
     cv2.imshow('image', img)

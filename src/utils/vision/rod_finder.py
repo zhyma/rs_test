@@ -13,8 +13,8 @@ import open3d as o3d
 
 import cv2
 import sys
-sys.path.append('../')
-from utils.rgb_extract import object_mask
+sys.path.append('../../')
+from utils.vision.rgb_extract import object_mask
 
 def draw_registration_result(source, target, transformation, additional_pcd = []):
     source_temp = copy.deepcopy(source)
