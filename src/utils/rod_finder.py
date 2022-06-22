@@ -14,7 +14,7 @@ import open3d as o3d
 import cv2
 import sys
 sys.path.append('../')
-from utils.rgb_extract import object_mask
+from utils.rod_rgb_extract import object_mask
 
 def draw_registration_result(source, target, transformation, additional_pcd = []):
     source_temp = copy.deepcopy(source)
@@ -204,12 +204,13 @@ class rod_finder():
         self.height = img.shape[0]
 
         ## estimate the dimension of the rod
-        ## get four corner points of the box
-        box = np.int0(cv2.boxPoints(rect))
-        p = []
-        for i in box:
-            p.append(self.find_corner(box, i, 10))
-        # p = self.find_corner(box, box[0], 10)
+        ## project the 2D bounding box back into 3D
+        ## and find the corresponding corners in 3D space
+        self.bouding_box_2d = np.int0(cv2.boxPoints(rect))
+        self.bounding_box_3d = []
+        for i in self.bouding_box_2d:
+            self.bounding_box_3d.append(self.find_corner(self.bouding_box_2d, i, 10))
+        p = self.bounding_box_3d
         l1 = self.dist_3d(p[0], p[1])
         l2 = self.dist_3d(p[1], p[2])
 
@@ -251,3 +252,5 @@ class rod_finder():
         # # draw_registration_result(source, target, reg_p2p.transformation)
         axis_pcd = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1, origin=cluster_center)
         draw_registration_result(source, ws_pcd, reg_p2p.transformation, [axis_pcd])
+
+        return reg_p2p.transformation

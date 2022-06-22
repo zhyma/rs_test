@@ -4,6 +4,7 @@ import copy
 import numpy as np
 
 from utils.rod_finder import rod_finder
+from utils.rope_preprocessing import *
 
 import open3d as o3d
 import cv2
@@ -53,17 +54,21 @@ def main():
 
 def test_with_files(path):
     img = cv2.imread("./"+ path +"/image.jpeg")
-    # cv2.imshow('image',img)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-    pcd = o3d.io.read_point_cloud("./"+ path +"/workspace.pcd")
-    # o3d.visualization.draw_geometries([pcd])
-    ws_distance = 850/1000.0
+    # pcd = o3d.io.read_point_cloud("./"+ path +"/workspace.pcd")
+    # ws_distance = 850/1000.0
 
-    rf = rod_finder()
-    rf.find_rod(pcd, img, ws_distance)
-    # load
-    ...
+    # rf = rod_finder()
+    # rf.find_rod(pcd, img, ws_distance)
+    
+    # ## pre-process rgb image to get "some" rope data
+    # ## bb_2d: 2d bounding box for the rod
+    # bb_2d = rf.bouding_box_2d
+
+    bb_2d = [[378, 286], [383, 218], [864, 253], [859, 320]]
+    print(bb_2d)
+
+    edge_detection(img, bb_2d)
+
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
