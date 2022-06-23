@@ -24,12 +24,15 @@ def main():
     from utils.robot.path_generator  import path_generator
     from utils.robot.gripper_ctrl    import gripper_ctrl
     from utils.robot.add_marker      import marker
-    # # moveit motion planning tool
-    # # from moveit.py import move_yumi
 
     from geometry_msgs.msg import Pose
     from transforms3d import euler
     import moveit_msgs.msg
+
+    import tf
+    from tf.transformations import quaternion_from_matrix
+
+    br = tf.TransformBroadcaster()
 
     rospy.init_node('wrap_wrap', anonymous=True)
     rate = rospy.Rate(10)
@@ -97,8 +100,19 @@ def main():
     
     rf.find_rod(rs.pcd, img, ws_distance)
 
-    ##-------------------##
-    ## rod found, start to do the first wrap
+    ## broadcasting the rod's tf
+    trans = rf.rod_transformation
+    rod_pos = (trans[0][3], trans[1][3], trans[2][3])
+    print(type(trans))
+    rod_rot = quaternion_from_matrix(trans)
+    print(rod_rot)
+    br.sendTransform(rod_pos,rod_rot, rospy.Time.now(), 'rod', '/camera_depth_frame')
+
+    # ##-------------------##
+    # ## rod found, start to do the first wrap
+
+    rod = rod_detection(scene)
+    rod.get_tf()
 
     rod.scene_add_rod(rod.rod_state)
     ## Need time to initializing
@@ -110,54 +124,54 @@ def main():
     rod_y = rod.rod_state.position.y
     rod_z = rod.rod_state.position.z
 
-    x = rod_x
-    y = 0
-    z = 0.10
-    start = [x+0.01, y + 0.1+0.25, z]
-    stop  = [x+0.01, y + 0.1, z]
+    # x = rod_x
+    # y = 0
+    # z = 0.10
+    # start = [x+0.01, y + 0.1+0.25, z]
+    # stop  = [x+0.01, y + 0.1, z]
 
-    goal.show(x=stop[0], y=stop[1], z=stop[2])
+    # goal.show(x=stop[0], y=stop[1], z=stop[2])
 
-    path = [start, stop]
-    cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
-    yumi.execute_plan(cartesian_plan, ctrl_group[0])
-    print("go to pose have the cable in between gripper: ", end="")
-    rospy.sleep(2)
+    # path = [start, stop]
+    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
+    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    # print("go to pose have the cable in between gripper: ", end="")
+    # rospy.sleep(2)
 
-    gripper.l_close()
-
-    # ## left gripper grabs the link
     # gripper.l_close()
 
-    # ##-------------------##
-    # ## generate spiral here
-    # # s is the center of the rod
-    spiral_params = [rod_x, rod_y, rod_z]
-    # # g is the gripper's starting position
-    gripper_states = stop
-    path = pg.generate_spiral(spiral_params, gripper_states)
-    pg.publish_waypoints(path)
+    # # ## left gripper grabs the link
+    # # gripper.l_close()
 
-    # path1 = path[0:len(path)//2]
-    # path2 = path[len(path)//2:]
+    # # ##-------------------##
+    # # ## generate spiral here
+    # # # s is the center of the rod
+    # spiral_params = [rod_x, rod_y, rod_z]
+    # # # g is the gripper's starting position
+    # gripper_states = stop
+    # path = pg.generate_spiral(spiral_params, gripper_states)
+    # pg.publish_waypoints(path)
 
-    ## motion planning and executing
-    cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
-    ## fraction < 1: not successfully planned
-    print(fraction)
-    yumi.execute_plan(cartesian_plan, ctrl_group[0])
-    rospy.sleep(2)
+    # # path1 = path[0:len(path)//2]
+    # # path2 = path[len(path)//2:]
+
+    # ## motion planning and executing
+    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
+    # ## fraction < 1: not successfully planned
+    # print(fraction)
+    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    # rospy.sleep(2)
 
 
-    start = path[-1]
-    stop = [start[0], start[1], 0.1]
+    # start = path[-1]
+    # stop = [start[0], start[1], 0.1]
 
-    path = [start, stop]
-    cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
-    yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    # path = [start, stop]
+    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
+    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
 
-    gripper.l_open()
-    gripper.r_open()
+    # gripper.l_open()
+    # gripper.r_open()
 
 
 def test_with_files(path):

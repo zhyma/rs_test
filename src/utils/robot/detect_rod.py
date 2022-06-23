@@ -8,7 +8,7 @@ import rospy
 from std_msgs.msg import Float64
 
 # tf has been deprecated
-#import tf
+import tf
 from transforms3d import euler
 
 from nav_msgs.msg import Path
@@ -31,27 +31,42 @@ class rod_detection():
         # You need to initializing a node before instantiate the class
         self.scene = scene
         self.rod_state = CylinderProperties()
+        self.listener = tf.TransformListener()
+        self.tf_updated = False
+        self.trans = []
+        self.rot = []
         # directly get the true value from Gazebo
         # rospy.Subscriber("/get_rod_properties",CylinderProperties, self.callback)
 
-    def detect(self):
-        # mock up pose and dims
-        self.rod_state.position.x = 0.35
-        self.rod_state.position.y = -0.15
-        self.rod_state.position.z = 0.33
-        self.rod_state.orientation.x = 0.707
-        self.rod_state.orientation.y = 0
-        self.rod_state.orientation.z = 0
-        self.rod_state.orientation.w = 0.707
-        self.rod_state.r = 0.02
-        self.rod_state.l = 0.2
+    # def detect(self):
+    #     # mock up pose and dims
+    #     self.rod_state.position.x = 0.35
+    #     self.rod_state.position.y = -0.15
+    #     self.rod_state.position.z = 0.33
+    #     self.rod_state.orientation.x = 0.707
+    #     self.rod_state.orientation.y = 0
+    #     self.rod_state.orientation.z = 0
+    #     self.rod_state.orientation.w = 0.707
+    #     self.rod_state.r = 0.02
+    #     self.rod_state.l = 0.2
 
-    def callback(self, data):
-        # self.rod_state.position = copy.deepcopy(data.position)
-        # self.rod_state.orientation = copy.deepcopy(data.orientation)
-        # self.rod_state.r = data.r
-        # self.rod_state.l = data.l
-        ...
+    def get_tf(self):
+        try:
+          (self.trans,self.rot) = self.listener.lookupTransform('world','rod', rospy.Time(0))
+          self.tf_updated = True
+          self.rod_state.position.x = self.trans[0]
+          self.rod_state.position.y = self.trans[1]
+          self.rod_state.position.z = self.trans[2]
+          self.rod_state.orientation.x = 0.707
+          self.rod_state.orientation.y = 0
+          self.rod_state.orientation.z = 0
+          self.rod_state.orientation.w = 0.707
+          self.rod_state.r = 0.02
+          self.rod_state.l = 0.2
+
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+          self.tf_updated = False
+          ...
 
     def scene_add_rod(self, rod_info):
         print(rod_info.position)

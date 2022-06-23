@@ -245,6 +245,7 @@ class rod_finder():
                 o3d.pipelines.registration.TransformationEstimationPointToPoint())
         print(reg_p2p)
         print("Transformation is:")
+        self.rod_transformation = reg_p2p.transformation
         print(reg_p2p.transformation)
         print("")
         # # draw_registration_result(source, raw_pcd, reg_p2p.transformation)
