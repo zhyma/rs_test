@@ -74,104 +74,119 @@ def main():
     rf = rod_finder()
     ic = image_converter()
 
+    ## There is depth data in the RS's buffer
     while rs.is_data_updated==False:
         rate.sleep()
 
     print("depth_data_ready")
 
+    ## Link the transformation of the vision system to the robot coordinate
     while ws_tf.tf_updated==False:
         ws_tf.get_tf()
         rate.sleep()
 
     print("tf_data_ready")
 
+    listener = tf.TransformListener()
+    (trans_ar2cam,rot_ar2cam) = listener.lookupTransform('/camera_link','ar_marker_90', rospy.Time(0))
+    (trans_yumi,rot_yumi) = listener.lookupTransform('/world','yumi_base_link', rospy.Time(0))
+    #trans_ar2base = ...
+    #rot_ar2base = ...
+
+    bc = tf.TransformBroadcaster()
+    bc.sendTransform((0, 0, -0.03), \
+                              (0, 0, 0, 1), \
+                              rospy.Time.now(), \
+                              "world", "camera_link")
+
+    ## There is RGB data in the RS's buffer
     while ic.has_data==False:
         rate.sleep()
 
     print("rgb_data_ready")
 
-    ws_distance = ws_tf.trans[0]
-    print(ws_distance)
-    img = copy.deepcopy(ic.cv_image)
-    # while True:
-    #     cv2.imshow("Image window", img)
-    #     cv2.waitKey(3)
-    #     rate.sleep()
+    # ws_distance = ws_tf.trans[0]
+    # print(ws_distance)
+    # img = copy.deepcopy(ic.cv_image)
+    # # while True:
+    # #     cv2.imshow("Image window", img)
+    # #     cv2.waitKey(3)
+    # #     rate.sleep()
     
-    rf.find_rod(rs.pcd, img, ws_distance)
+    # rf.find_rod(rs.pcd, img, ws_distance)
 
-    ## broadcasting the rod's tf
-    trans = rf.rod_transformation
-    rod_pos = (trans[0][3], trans[1][3], trans[2][3])
-    print(type(trans))
-    rod_rot = quaternion_from_matrix(trans)
-    print(rod_rot)
-    br.sendTransform(rod_pos,rod_rot, rospy.Time.now(), 'rod', '/camera_depth_frame')
-
-    # ##-------------------##
-    # ## rod found, start to do the first wrap
-
-    rod = rod_detection(scene)
-    rod.get_tf()
-
-    rod.scene_add_rod(rod.rod_state)
-    ## Need time to initializing
-    rospy.sleep(3)
-
-    pose_goal = Pose()
-
-    rod_x = rod.rod_state.position.x
-    rod_y = rod.rod_state.position.y
-    rod_z = rod.rod_state.position.z
-
-    # x = rod_x
-    # y = 0
-    # z = 0.10
-    # start = [x+0.01, y + 0.1+0.25, z]
-    # stop  = [x+0.01, y + 0.1, z]
-
-    # goal.show(x=stop[0], y=stop[1], z=stop[2])
-
-    # path = [start, stop]
-    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
-    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
-    # print("go to pose have the cable in between gripper: ", end="")
-    # rospy.sleep(2)
-
-    # gripper.l_close()
-
-    # # ## left gripper grabs the link
-    # # gripper.l_close()
+    # ## broadcasting the rod's tf
+    # trans = rf.rod_transformation
+    # rod_pos = (trans[0][3], trans[1][3], trans[2][3])
+    # print(type(trans))
+    # rod_rot = quaternion_from_matrix(trans)
+    # print(rod_rot)
+    # br.sendTransform(rod_pos,rod_rot, rospy.Time.now(), 'rod', '/camera_depth_frame')
 
     # # ##-------------------##
-    # # ## generate spiral here
-    # # # s is the center of the rod
-    # spiral_params = [rod_x, rod_y, rod_z]
-    # # # g is the gripper's starting position
-    # gripper_states = stop
-    # path = pg.generate_spiral(spiral_params, gripper_states)
-    # pg.publish_waypoints(path)
+    # # ## rod found, start to do the first wrap
 
-    # # path1 = path[0:len(path)//2]
-    # # path2 = path[len(path)//2:]
+    # rod = rod_detection(scene)
+    # rod.get_tf()
 
-    # ## motion planning and executing
-    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
-    # ## fraction < 1: not successfully planned
-    # print(fraction)
-    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
-    # rospy.sleep(2)
+    # rod.scene_add_rod(rod.rod_state)
+    # ## Need time to initializing
+    # rospy.sleep(3)
+
+    # pose_goal = Pose()
+
+    # rod_x = rod.rod_state.position.x
+    # rod_y = rod.rod_state.position.y
+    # rod_z = rod.rod_state.position.z
+
+    # # x = rod_x
+    # # y = 0
+    # # z = 0.10
+    # # start = [x+0.01, y + 0.1+0.25, z]
+    # # stop  = [x+0.01, y + 0.1, z]
+
+    # # goal.show(x=stop[0], y=stop[1], z=stop[2])
+
+    # # path = [start, stop]
+    # # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
+    # # yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    # # print("go to pose have the cable in between gripper: ", end="")
+    # # rospy.sleep(2)
+
+    # # gripper.l_close()
+
+    # # # ## left gripper grabs the link
+    # # # gripper.l_close()
+
+    # # # ##-------------------##
+    # # # ## generate spiral here
+    # # # # s is the center of the rod
+    # # spiral_params = [rod_x, rod_y, rod_z]
+    # # # # g is the gripper's starting position
+    # # gripper_states = stop
+    # # path = pg.generate_spiral(spiral_params, gripper_states)
+    # # pg.publish_waypoints(path)
+
+    # # # path1 = path[0:len(path)//2]
+    # # # path2 = path[len(path)//2:]
+
+    # # ## motion planning and executing
+    # # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
+    # # ## fraction < 1: not successfully planned
+    # # print(fraction)
+    # # yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    # # rospy.sleep(2)
 
 
-    # start = path[-1]
-    # stop = [start[0], start[1], 0.1]
+    # # start = path[-1]
+    # # stop = [start[0], start[1], 0.1]
 
-    # path = [start, stop]
-    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
-    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    # # path = [start, stop]
+    # # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
+    # # yumi.execute_plan(cartesian_plan, ctrl_group[0])
 
-    # gripper.l_open()
-    # gripper.r_open()
+    # # gripper.l_open()
+    # # gripper.r_open()
 
 
 def test_with_files(path):

@@ -26,5 +26,5 @@
     <remap from="camera_info"  to="$(arg camera_info_topic)" />
   </node>
 
-  <node name="rviz" pkg="rviz" type="rviz"/>
+  <!--<node name="rviz" pkg="rviz" type="rviz"/>-->
 </launch>

@@ -11,6 +11,7 @@ class workspace_tf:
 
   def __init__(self):
     self.listener = tf.TransformListener()
+    self.caster = tf.TransformBroadcaster()
     self.tf_updated = False
     self.trans = []
     self.rot = []
@@ -23,6 +24,13 @@ class workspace_tf:
     except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
       self.tf_updated = False
       ...
+
+  def attach_vision_tf(self):
+    self.caster.sendTransform((0, 0, -0.03), \
+                              (0, 0, 0, 1), \
+                              rospy.Time.now(), \
+                              "yumi_base_link", "ar_marker_90")
+    ...
 
 if __name__ == '__main__':
   rospy.init_node('tf_converter', anonymous=True)

@@ -2,6 +2,8 @@
 *.jpg
 *.pcd
 *.jpeg
+*.pdf
+*.gv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
