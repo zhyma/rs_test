@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch> 
 
-    <!--yumi_traj_pos_control.launch part-->
+  <!--yumi_traj_pos_control.launch part-->
 
 	<arg name="name" default="yumi" doc="The robot name. Ensure this is the same name you give to the arm in the urdf instance."/>
 	
