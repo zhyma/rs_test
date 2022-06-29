@@ -26,7 +26,7 @@ class workspace_tf:
         h[:3,3] = trans
         return h
       except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-        rate.sleep()
+        self.rate.sleep()
 
 
   def set_tf(self, ref_frame, obj, h, delay=1):

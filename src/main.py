@@ -2,6 +2,7 @@ import sys
 import copy
 
 import numpy as np
+from math import pi
 
 from utils.vision.rod_finder import rod_finder
 
@@ -122,60 +123,81 @@ def main():
     ## Need time to initializing
     rospy.sleep(3)
 
-    # pose_goal = Pose()
+    input("Help me to put the cable on the rod!")
 
-    # rod_x = rod.rod_state.position.x
-    # rod_y = rod.rod_state.position.y
-    # rod_z = rod.rod_state.position.z
+    pose_goal = Pose()
 
-    # # x = rod_x
-    # # y = 0
-    # # z = 0.10
-    # # start = [x+0.01, y + 0.1+0.25, z]
-    # # stop  = [x+0.01, y + 0.1, z]
+    rod_x = rod.rod_state.position.x
+    rod_y = rod.rod_state.position.y
+    rod_z = rod.rod_state.position.z
 
-    # # goal.show(x=stop[0], y=stop[1], z=stop[2])
+    # x = rod_x
+    # y = 0
+    # z = 0.10
+    # start = [x+0.01, y + 0.1+0.25, z]
+    # stop  = [x+0.01, y + 0.1, z]
 
-    # # path = [start, stop]
-    # # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
-    # # yumi.execute_plan(cartesian_plan, ctrl_group[0])
-    # # print("go to pose have the cable in between gripper: ", end="")
-    # # rospy.sleep(2)
+    # goal.show(x=stop[0], y=stop[1], z=stop[2])
 
+    # path = [start, stop]
+    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
+    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    # print("go to pose have the cable in between gripper: ", end="")
+    # rospy.sleep(2)
+
+    # gripper.l_close()
+
+    # # ## left gripper grabs the link
     # # gripper.l_close()
 
-    # # # ## left gripper grabs the link
-    # # # gripper.l_close()
+    # # ##-------------------##
+    # # ## generate spiral here
+    # # # s is the center of the rod
+    # spiral_params = [rod_x, rod_y, rod_z]
+    # # # g is the gripper's starting position
+    # gripper_states = stop
+    # path = pg.generate_spiral(spiral_params, gripper_states)
+    rod_pos = [rod.rod_state.position.x, rod.rod_state.position.y, rod.rod_state.position.z]
+    step_size = 0.02
+    r = rod.rod_state.r
+    l = 2*pi*r + 0.05
+    curve_path = pg.generate_nusadua(rod_pos, l, r, step_size)
 
-    # # # ##-------------------##
-    # # # ## generate spiral here
-    # # # # s is the center of the rod
-    # # spiral_params = [rod_x, rod_y, rod_z]
-    # # # # g is the gripper's starting position
-    # # gripper_states = stop
-    # # path = pg.generate_spiral(spiral_params, gripper_states)
-    # # pg.publish_waypoints(path)
+    stop  = curve_path[0]
+    start = [stop[0], stop[1] + 0.25, stop[2]]
+    cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, [start, stop])
+    yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    print("go to pose have the cable in between gripper: ", end="")
+    rospy.sleep(2)
 
-    # # # path1 = path[0:len(path)//2]
-    # # # path2 = path[len(path)//2:]
+    gripper.l_close()
 
-    # # ## motion planning and executing
-    # # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
-    # # ## fraction < 1: not successfully planned
-    # # print(fraction)
-    # # yumi.execute_plan(cartesian_plan, ctrl_group[0])
-    # # rospy.sleep(2)
+    pg.publish_waypoints(curve_path)
+
+    cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, curve_path)
+    yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    rospy.sleep(2)
+
+    # # path1 = path[0:len(path)//2]
+    # # path2 = path[len(path)//2:]
+
+    # ## motion planning and executing
+    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
+    # ## fraction < 1: not successfully planned
+    # print(fraction)
+    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    # rospy.sleep(2)
 
 
-    # # start = path[-1]
-    # # stop = [start[0], start[1], 0.1]
+    # start = path[-1]
+    # stop = [start[0], start[1], 0.1]
 
-    # # path = [start, stop]
-    # # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
-    # # yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    # path = [start, stop]
+    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
+    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
 
-    # # gripper.l_open()
-    # # gripper.r_open()
+    # gripper.l_open()
+    # gripper.r_open()
 
 
 def test_with_files(path):

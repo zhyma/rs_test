@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from math import pi, sqrt, atan2
+from math import pi, sin, cos, sqrt, atan2
 import numpy as np
 
 import rospy
@@ -14,6 +14,22 @@ class path_generator():
     def __init__(self):
         self.waypoint_pub = rospy.Publisher('yumi_waypoint', Path, queue_size=1, latch=True)
         ...
+
+    def generate_nusadua(self, rod_pos, l, r , step_size):
+        # curve on x-z plane
+        path = []
+        n_samples = 12
+        for i in range(n_samples):
+            t = 2*pi/n_samples * i
+            x = r*cos(t)
+            y = r*sin(t)
+            ## based on the world coordinate
+            xr  = rod_pos[0] + x-(l-t*r)*sin(t) * ( 1)
+            yr  = rod_pos[2] + y+(l-t*r)*cos(t) * (-1)
+            adv = rod_pos[1] + step_size * i/n_samples
+            path.append([xr, adv, yr])
+        
+        return path
 
     def generate_spiral(self, spiral_params, gripper_states):
         path = []
