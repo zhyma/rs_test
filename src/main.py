@@ -13,7 +13,7 @@ import cv2
 def main():
     import rospy
     from utils.vision.rs2o3d import rs2o3d
-    from utils.vision.workspace_tf import workspace_tf
+    # from utils.vision.workspace_tf import workspace_tf
     from utils.vision.rgb_camera import image_converter
 
     import moveit_commander
@@ -25,14 +25,16 @@ def main():
     from utils.robot.gripper_ctrl    import gripper_ctrl
     from utils.robot.add_marker      import marker
 
+    from utils.workspace_tf          import workspace_tf
+
     from geometry_msgs.msg import Pose
     from transforms3d import euler
     import moveit_msgs.msg
 
     import tf
-    from tf.transformations import quaternion_from_matrix
+    from tf.transformations import quaternion_from_matrix, quaternion_matrix
 
-    br = tf.TransformBroadcaster()
+    bc = tf.TransformBroadcaster()
 
     rospy.init_node('wrap_wrap', anonymous=True)
     rate = rospy.Rate(10)
@@ -80,24 +82,37 @@ def main():
 
     print("depth_data_ready")
 
-    ## Link the transformation of the vision system to the robot coordinate
-    while ws_tf.tf_updated==False:
-        ws_tf.get_tf()
-        rate.sleep()
+    # ## Link the transformation of the vision system to the robot coordinate
+    # updated = False
+    # while ws_tf.tf_updated==False:
+    #     ws_tf.get_tf()
+    #     rate.sleep()
 
     print("tf_data_ready")
 
     listener = tf.TransformListener()
-    (trans_ar2cam,rot_ar2cam) = listener.lookupTransform('/camera_link','ar_marker_90', rospy.Time(0))
-    (trans_yumi,rot_yumi) = listener.lookupTransform('/world','yumi_base_link', rospy.Time(0))
-    #trans_ar2base = ...
-    #rot_ar2base = ...
+    # bc = tf.TransformBroadcaster()
 
-    bc = tf.TransformBroadcaster()
-    bc.sendTransform((0, 0, -0.03), \
-                              (0, 0, 0, 1), \
-                              rospy.Time.now(), \
-                              "world", "camera_link")
+    t_ar2world = np.array([[0, 0, 1, 0],[1, 0, 0, 0],[0, 1, 0, 0.07],[0, 0, 0, 1]])
+
+    updated = False
+    while updated == False:
+        try:
+            (trans_cam2ar,rot_cam2ar) = listener.lookupTransform('ar_marker_90','camera_link', rospy.Time(0))
+            updated = True
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            updated = False
+
+        rate.sleep()
+    t_cam2ar = quaternion_matrix(rot_cam2ar)
+    t_cam2ar[:3,3] = trans_cam2ar
+
+    t_cam2world = np.dot(t_ar2world,t_cam2ar)
+    q = quaternion_from_matrix(t_cam2world)
+    o = t_cam2world[:3,3]
+    
+    bc.sendTransform(o, q, rospy.Time.now(), "camera_link", "world")
+    rospy.sleep(1)
 
     ## There is RGB data in the RS's buffer
     while ic.has_data==False:
@@ -105,23 +120,27 @@ def main():
 
     print("rgb_data_ready")
 
-    # ws_distance = ws_tf.trans[0]
-    # print(ws_distance)
-    # img = copy.deepcopy(ic.cv_image)
-    # # while True:
-    # #     cv2.imshow("Image window", img)
-    # #     cv2.waitKey(3)
-    # #     rate.sleep()
+    rod2cam_trans, _ = ws_tf.get_tf('camera_depth_frame', 'ar_marker_90')
+    ws_distance = rod2cam_trans[0]
+    print(ws_distance)
+    img = copy.deepcopy(ic.cv_image)
+    # while True:
+    #     cv2.imshow("Image window", img)
+    #     cv2.waitKey(3)
+    #     rate.sleep()
     
-    # rf.find_rod(rs.pcd, img, ws_distance)
+    rf.find_rod(rs.pcd, img, ws_distance)
 
-    # ## broadcasting the rod's tf
-    # trans = rf.rod_transformation
-    # rod_pos = (trans[0][3], trans[1][3], trans[2][3])
-    # print(type(trans))
-    # rod_rot = quaternion_from_matrix(trans)
-    # print(rod_rot)
-    # br.sendTransform(rod_pos,rod_rot, rospy.Time.now(), 'rod', '/camera_depth_frame')
+    ## broadcasting the rod's tf
+    trans = rf.rod_transformation
+    rod_pos = (trans[0][3], trans[1][3], trans[2][3])
+    print("rod's position: ", end="")
+    print(rod_pos)
+    rod_rot = quaternion_from_matrix(trans)
+    print("rod's orientation: ", end="")
+    print(rod_rot)
+    bc.sendTransform(rod_pos,rod_rot, rospy.Time.now(), 'rod', 'camera_depth_frame')
+    rospy.sleep(1)
 
     # # ##-------------------##
     # # ## rod found, start to do the first wrap

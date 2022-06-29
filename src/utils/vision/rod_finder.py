@@ -94,7 +94,7 @@ class rod_finder():
     def dist_3d(self, p1, p2):
         return sqrt((p1[0]-p2[0])**2+(p1[1]-p2[1])**2+(p1[2]-p2[2])**2)
 
-    def find_rod(self, raw_pcd, img, ws_distance):
+    def find_rod(self, raw_pcd, img, ws_distance, visualizing = False):
         ## pcd is the raw point cloud data
         ## 1. based on the workspace distacne, 
         ## remove point cloud outside that distance
@@ -109,7 +109,7 @@ class rod_finder():
         self.om = object_mask(self.raw_array, img, mask_color=(255,255,255))
         # print(raw_array.shape)
 
-        if colorized:
+        if visualizing:
             color = np.resize(img, (img.shape[0]*img.shape[1],3))/255.0
             raw_pcd.colors = o3d.utility.Vector3dVector(color)
 
@@ -119,12 +119,12 @@ class rod_finder():
             ## x is the depth direction in RealSense coordiante
             if self.raw_array[i][0] < ws_distance:
                 ws_array.append([self.raw_array[i][0], self.raw_array[i][1], self.raw_array[i][2]])
-                if colorized:
+                if visualizing:
                     ws_color.append([color[i][2], color[i][1], color[i][0]])
 
         ws_pcd = o3d.geometry.PointCloud()
         ws_pcd.points = o3d.utility.Vector3dVector(np.asarray(ws_array))
-        if colorized:
+        if visualizing:
             ws_pcd.colors = o3d.utility.Vector3dVector(np.array(ws_color, dtype=np.float64))
 
         ## ================
@@ -247,8 +247,10 @@ class rod_finder():
         print("Transformation is:")
         self.rod_transformation = reg_p2p.transformation
         print(reg_p2p.transformation)
-        print("")
-        # # draw_registration_result(source, raw_pcd, reg_p2p.transformation)
-        # # draw_registration_result(source, target, reg_p2p.transformation)
-        axis_pcd = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1, origin=cluster_center)
-        draw_registration_result(source, ws_pcd, reg_p2p.transformation, [axis_pcd])
+
+        if visualizing == True:
+            print("")
+            # # draw_registration_result(source, raw_pcd, reg_p2p.transformation)
+            # # draw_registration_result(source, target, reg_p2p.transformation)
+            axis_pcd = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1, origin=cluster_center)
+            draw_registration_result(source, ws_pcd, reg_p2p.transformation, [axis_pcd])
