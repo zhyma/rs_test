@@ -5,24 +5,42 @@ import sys
 import rospy
 import tf
 # import geometry_msgs.msg
+from tf.transformations import quaternion_from_matrix, quaternion_matrix
 
 ## workspace tf
 class workspace_tf:
 
-  def __init__(self):
+  def __init__(self, rate):
     self.listener = tf.TransformListener()
     self.caster = tf.TransformBroadcaster()
+    self.rate = rate
     
 
   def get_tf(self, ref_frame, obj):
+    ## return a homogeneous transformation matrix
     updated = False
     while updated==False:
       try:
         (trans,rot) = self.listener.lookupTransform(ref_frame, obj, rospy.Time(0))
-        return trans, rot
+        h = quaternion_matrix(rot)
+        h[:3,3] = trans
+        return h
       except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-        ...
+        rate.sleep()
 
+
+  def set_tf(self, ref_frame, obj, h, delay=1):
+    updated = False
+    q = quaternion_from_matrix(h)
+    o = h[:3,3]
+    while updated==False:
+      self.caster.sendTransform(o, q, rospy.Time.now(), obj, ref_frame)
+      rospy.sleep(delay)
+      try:
+        _,_ = self.listener.lookupTransform(ref_frame, obj, rospy.Time(0))
+        updated = True
+      except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+        rate.sleep()
 
 if __name__ == '__main__':
   rospy.init_node('tf_converter', anonymous=True)

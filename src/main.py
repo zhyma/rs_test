@@ -72,7 +72,7 @@ def main():
     ##-------------------##
     ## Detect the rod in the first place
     rs = rs2o3d()
-    ws_tf = workspace_tf()
+    ws_tf = workspace_tf(rate)
     rf = rod_finder()
     ic = image_converter()
 
@@ -82,46 +82,21 @@ def main():
 
     print("depth_data_ready")
 
-    # ## Link the transformation of the vision system to the robot coordinate
-    # updated = False
-    # while ws_tf.tf_updated==False:
-    #     ws_tf.get_tf()
-    #     rate.sleep()
-
-    print("tf_data_ready")
-
-    listener = tf.TransformListener()
-    # bc = tf.TransformBroadcaster()
 
     t_ar2world = np.array([[0, 0, 1, 0],[1, 0, 0, 0],[0, 1, 0, 0.07],[0, 0, 0, 1]])
-
-    updated = False
-    while updated == False:
-        try:
-            (trans_cam2ar,rot_cam2ar) = listener.lookupTransform('ar_marker_90','camera_link', rospy.Time(0))
-            updated = True
-        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            updated = False
-
-        rate.sleep()
-    t_cam2ar = quaternion_matrix(rot_cam2ar)
-    t_cam2ar[:3,3] = trans_cam2ar
-
+    t_cam2ar = ws_tf.get_tf('ar_marker_90','camera_link')
     t_cam2world = np.dot(t_ar2world,t_cam2ar)
-    q = quaternion_from_matrix(t_cam2world)
-    o = t_cam2world[:3,3]
-    
-    bc.sendTransform(o, q, rospy.Time.now(), "camera_link", "world")
-    rospy.sleep(1)
+    ws_tf.set_tf("world", "camera_link", t_cam2world)
 
-    ## There is RGB data in the RS's buffer
+
+    ## There is RGB data in the RS's buffer (ic: image converter)
     while ic.has_data==False:
         rate.sleep()
 
     print("rgb_data_ready")
 
-    rod2cam_trans, _ = ws_tf.get_tf('camera_depth_frame', 'ar_marker_90')
-    ws_distance = rod2cam_trans[0]
+    h = ws_tf.get_tf('camera_depth_frame', 'ar_marker_90')
+    ws_distance = h[0,3]
     print(ws_distance)
     img = copy.deepcopy(ic.cv_image)
     # while True:
@@ -132,15 +107,10 @@ def main():
     rf.find_rod(rs.pcd, img, ws_distance)
 
     ## broadcasting the rod's tf
-    trans = rf.rod_transformation
-    rod_pos = (trans[0][3], trans[1][3], trans[2][3])
-    print("rod's position: ", end="")
-    print(rod_pos)
-    rod_rot = quaternion_from_matrix(trans)
-    print("rod's orientation: ", end="")
-    print(rod_rot)
-    bc.sendTransform(rod_pos,rod_rot, rospy.Time.now(), 'rod', 'camera_depth_frame')
-    rospy.sleep(1)
+    t_rod2cam = rf.rod_transformation
+    t_cam2world = ws_tf.get_tf('world','camera_depth_frame')
+    t_rod2world = np.dot(t_cam2world, t_rod2cam)
+    ws_tf.set_tf('world', 'rod', t_rod2world)
 
     # # ##-------------------##
     # # ## rod found, start to do the first wrap
