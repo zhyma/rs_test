@@ -33,14 +33,14 @@ class workspace_tf:
     updated = False
     q = quaternion_from_matrix(h)
     o = h[:3,3]
-    while updated==False:
-      self.caster.sendTransform(o, q, rospy.Time.now(), obj, ref_frame)
-      rospy.sleep(delay)
-      try:
-        _,_ = self.listener.lookupTransform(ref_frame, obj, rospy.Time(0))
-        updated = True
-      except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-        rate.sleep()
+    # while updated==False:
+    self.caster.sendTransform(o, q, rospy.Time.now(), obj, ref_frame)
+      # rospy.sleep(delay)
+      # try:
+      #   _,_ = self.listener.lookupTransform(ref_frame, obj, rospy.Time(0))
+      #   updated = True
+      # except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+      #   rate.sleep()
 
 if __name__ == '__main__':
   rospy.init_node('tf_converter', anonymous=True)

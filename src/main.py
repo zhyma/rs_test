@@ -17,7 +17,7 @@ def main():
     from utils.vision.rgb_camera import image_converter
 
     import moveit_commander
-    from utils.robot.detect_rod      import rod_detection
+    from utils.robot.rod_info        import rod_info
     # from utility.detect_cable    import cable_detection
     from utils.robot.workspace_ctrl  import move_yumi
     from utils.robot.jointspace_ctrl import joint_ctrl
@@ -112,15 +112,15 @@ def main():
     t_rod2world = np.dot(t_cam2world, t_rod2cam)
     ws_tf.set_tf('world', 'rod', t_rod2world)
 
-    # # ##-------------------##
-    # # ## rod found, start to do the first wrap
+    ##-------------------##
+    ## rod found, start to do the first wrap
 
-    # rod = rod_detection(scene)
-    # rod.get_tf()
+    rod = rod_info(scene, rate)
+    rod.set_info(t_rod2world, rf.rod_l, rf.rod_r)
 
-    # rod.scene_add_rod(rod.rod_state)
-    # ## Need time to initializing
-    # rospy.sleep(3)
+    rod.scene_add_rod()
+    ## Need time to initializing
+    rospy.sleep(3)
 
     # pose_goal = Pose()
 

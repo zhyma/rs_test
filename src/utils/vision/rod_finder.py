@@ -48,9 +48,12 @@ class rod_finder():
             for it in range(t_theta):
                 idx = il*t_theta+it
 
-                obj_np_cloud[idx][2] = r*cos(it*pi/t_theta)
-                obj_np_cloud[idx][0] = -r*sin(it*pi/t_theta)
-                obj_np_cloud[idx][1] = il/1000.0 - l/2
+                # obj_np_cloud[idx][2] = r*cos(it*pi/t_theta)
+                # obj_np_cloud[idx][0] = -r*sin(it*pi/t_theta)
+                # obj_np_cloud[idx][1] = il/1000.0 - l/2
+                obj_np_cloud[idx][1] = r*cos(it*pi/t_theta)
+                obj_np_cloud[idx][0] = r*sin(it*pi/t_theta)
+                obj_np_cloud[idx][2] = il/1000.0 - l/2
 
         self.rod_template.points = o3d.utility.Vector3dVector(obj_np_cloud)
 
@@ -213,6 +216,8 @@ class rod_finder():
         l1 = self.dist_3d(p[0], p[1])
         l2 = self.dist_3d(p[1], p[2])
 
+        ## d is the length of the rod
+        ## r is the radius of the rod
         d = 0
         r = 0
         if l1 > l2:
@@ -247,6 +252,8 @@ class rod_finder():
         print("Transformation is:")
         self.rod_transformation = reg_p2p.transformation
         print(reg_p2p.transformation)
+        self.rod_l = d
+        self.rod_r = r
 
         if visualizing == True:
             print("")
