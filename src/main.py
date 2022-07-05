@@ -28,7 +28,7 @@ def main():
 
     from utils.workspace_tf          import workspace_tf
 
-    from geometry_msgs.msg import Pose
+    from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
     from transforms3d import euler
     import moveit_msgs.msg
 
@@ -84,7 +84,11 @@ def main():
     print("depth_data_ready")
 
 
-    t_ar2world = np.array([[0, 0, 1, 0],[1, 0, 0, 0],[0, 1, 0, 0.07],[0, 0, 0, 1]])
+    ## transformation of the AR tag to world
+    t_ar2world = np.array([[0, 0, 1, 0],\
+                           [1, 0, 0, 0],\
+                           [0, 1, 0, 0.07],\
+                           [0, 0, 0, 1]])
     t_cam2ar = ws_tf.get_tf('ar_marker_90','camera_link')
     t_cam2world = np.dot(t_ar2world,t_cam2ar)
     ws_tf.set_tf("world", "camera_link", t_cam2world)
@@ -131,36 +135,12 @@ def main():
     rod_y = rod.rod_state.position.y
     rod_z = rod.rod_state.position.z
 
-    # x = rod_x
-    # y = 0
-    # z = 0.10
-    # start = [x+0.01, y + 0.1+0.25, z]
-    # stop  = [x+0.01, y + 0.1, z]
-
-    # goal.show(x=stop[0], y=stop[1], z=stop[2])
-
-    # path = [start, stop]
-    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
-    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
-    # print("go to pose have the cable in between gripper: ", end="")
-    # rospy.sleep(2)
-
-    # gripper.l_close()
-
-    # # ## left gripper grabs the link
-    # # gripper.l_close()
-
-    # # ##-------------------##
-    # # ## generate spiral here
-    # # # s is the center of the rod
-    # spiral_params = [rod_x, rod_y, rod_z]
-    # # # g is the gripper's starting position
-    # gripper_states = stop
-    # path = pg.generate_spiral(spiral_params, gripper_states)
+    ##-------------------##
+    ## generate spiral here
     rod_pos = [rod.rod_state.position.x, rod.rod_state.position.y, rod.rod_state.position.z]
     step_size = 0.02
     r = rod.rod_state.r
-    l = 2*pi*r + 0.05
+    l = 2*pi*r + 0.1
     curve_path = pg.generate_nusadua(rod_pos, l, r, step_size)
 
     stop  = curve_path[0]
@@ -178,23 +158,15 @@ def main():
     yumi.execute_plan(cartesian_plan, ctrl_group[0])
     rospy.sleep(2)
 
-    # # path1 = path[0:len(path)//2]
-    # # path2 = path[len(path)//2:]
+    gripper.l_open()
+    gripper.r_open()
 
-    # ## motion planning and executing
-    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
-    # ## fraction < 1: not successfully planned
-    # print(fraction)
-    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
-    # rospy.sleep(2)
+    start = curve_path[-1]
+    stop = [start[0], start[1], 0.1]
 
-
-    # start = path[-1]
-    # stop = [start[0], start[1], 0.1]
-
-    # path = [start, stop]
-    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
-    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    path = [start, stop]
+    cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
+    yumi.execute_plan(cartesian_plan, ctrl_group[0])
 
     # gripper.l_open()
     # gripper.r_open()
