@@ -110,24 +110,33 @@ def main():
     #     rate.sleep()
     
     rf.find_rod(rs.pcd, img, ws_distance)
-
+    t_rod_correction = np.array([[-1, 0, 0, 0],\
+                                 [0, 0, -1, 0],\
+                                 [0, -1, 0, 0],\
+                                 [0, 0, 0, 1]])
     ## broadcasting the rod's tf
     t_rod2cam = rf.rod_transformation
-    t_cam2world = ws_tf.get_tf('world','camera_depth_frame')
-    t_rod2world = np.dot(t_cam2world, t_rod2cam)
+
+    # t_cam2world = ws_tf.get_tf('world','camera_depth_frame')
+    t_rod_in_scene = np.dot(t_cam2world, t_rod2cam)
+    t_rod2world = np.dot(t_rod_in_scene, t_rod_correction)
+
+    ## apply correction matrix, because of the default cylinder orientation
     ws_tf.set_tf('world', 'rod', t_rod2world)
 
     ##-------------------##
     ## rod found, start to do the first wrap
 
     rod = rod_info(scene, rate)
-    rod.set_info(t_rod2world, rf.rod_l, rf.rod_r)
+    rod.set_info(t_rod_in_scene, rf.rod_l, rf.rod_r)
 
     rod.scene_add_rod()
     ## Need time to initializing
     rospy.sleep(3)
 
-    input("Help me to put the cable on the rod!")
+    key = input("Help me to put the cable on the rod!")
+    if key =='q':
+        return
 
     pose_goal = Pose()
 
@@ -135,41 +144,41 @@ def main():
     rod_y = rod.rod_state.position.y
     rod_z = rod.rod_state.position.z
 
-    ##-------------------##
-    ## generate spiral here
-    rod_pos = [rod.rod_state.position.x, rod.rod_state.position.y, rod.rod_state.position.z]
-    step_size = 0.02
-    r = rod.rod_state.r
-    l = 2*pi*r + 0.1
-    curve_path = pg.generate_nusadua(rod_pos, l, r, step_size)
+    # ##-------------------##
+    # ## generate spiral here
+    # rod_pos = [rod.rod_state.position.x, rod.rod_state.position.y, rod.rod_state.position.z]
+    # step_size = 0.02
+    # r = rod.rod_state.r
+    # l = 2*pi*r + 0.1
+    # curve_path = pg.generate_nusadua(rod_pos, l, r, step_size)
 
-    stop  = curve_path[0]
-    start = [stop[0], stop[1] + 0.25, stop[2]]
-    cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, [start, stop])
-    yumi.execute_plan(cartesian_plan, ctrl_group[0])
-    print("go to pose have the cable in between gripper: ", end="")
-    rospy.sleep(2)
+    # stop  = curve_path[0]
+    # start = [stop[0], stop[1] + 0.25, stop[2]]
+    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, [start, stop])
+    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    # print("go to pose have the cable in between gripper: ", end="")
+    # rospy.sleep(2)
 
-    gripper.l_close()
+    # gripper.l_close()
 
-    pg.publish_waypoints(curve_path)
+    # pg.publish_waypoints(curve_path)
 
-    cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, curve_path)
-    yumi.execute_plan(cartesian_plan, ctrl_group[0])
-    rospy.sleep(2)
-
-    gripper.l_open()
-    gripper.r_open()
-
-    start = curve_path[-1]
-    stop = [start[0], start[1], 0.1]
-
-    path = [start, stop]
-    cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
-    yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, curve_path)
+    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    # rospy.sleep(2)
 
     # gripper.l_open()
     # gripper.r_open()
+
+    # start = curve_path[-1]
+    # stop = [start[0], start[1], 0.1]
+
+    # path = [start, stop]
+    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
+    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
+
+    # # gripper.l_open()
+    # # gripper.r_open()
 
 
 def test_with_files(path):
