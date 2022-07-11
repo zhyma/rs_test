@@ -73,6 +73,7 @@ class move_yumi():
         ## We can plan a motion for this group to a desired pose for the
         ## end-effector:
         
+        print(pose_goal)
         group.set_pose_target(pose_goal)
 
         ## Now, we call the planner to compute the plan and execute it.

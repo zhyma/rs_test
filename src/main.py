@@ -134,24 +134,23 @@ def main():
     ## Need time to initializing
     rospy.sleep(3)
 
-    key = input("Help me to put the cable on the rod!")
-    if key =='q':
-        return
+    # key = input("Help me to put the cable on the rod! (q to quit)")
+    # if key =='q':
+    #     return
 
-    pose_goal = Pose()
+    ##-------------------##
+    ## generate spiral here
+    step_size = 0.02
+    r = rod.rod_state.r
+    ## l is the parameter to be tuned
+    l = 2*pi*r + 0.1
+    curve_path = pg.generate_nusadua(t_rod2world, l, r, step_size)
 
-    rod_x = rod.rod_state.position.x
-    rod_y = rod.rod_state.position.y
-    rod_z = rod.rod_state.position.z
+    pg.publish_waypoints(curve_path)
 
-    # ##-------------------##
-    # ## generate spiral here
-    # rod_pos = [rod.rod_state.position.x, rod.rod_state.position.y, rod.rod_state.position.z]
-    # step_size = 0.02
-    # r = rod.rod_state.r
-    # l = 2*pi*r + 0.1
-    # curve_path = pg.generate_nusadua(rod_pos, l, r, step_size)
+    # yumi.go_to_pose_goal(ctrl_group[0], curve_path[0])
 
+    # ## from default position move to the rope starting point
     # stop  = curve_path[0]
     # start = [stop[0], stop[1] + 0.25, stop[2]]
     # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, [start, stop])
@@ -159,10 +158,10 @@ def main():
     # print("go to pose have the cable in between gripper: ", end="")
     # rospy.sleep(2)
 
+    # ## grabbing the rope
     # gripper.l_close()
 
-    # pg.publish_waypoints(curve_path)
-
+    # ## wrapping
     # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, curve_path)
     # yumi.execute_plan(cartesian_plan, ctrl_group[0])
     # rospy.sleep(2)
