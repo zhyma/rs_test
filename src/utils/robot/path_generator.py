@@ -43,37 +43,47 @@ class path_generator():
         for i in range(n_samples):
             
             t = 2*pi/n_samples * i
-            # x = r*cos(t)
-            # y = r*sin(t)
-            # ## based on the world coordinate
-            # xr  = x-(l-t*r)*sin(t) * ( 1)
-            # yr  = y+(l-t*r)*cos(t) * (-1)
-            # adv = step_size * i/n_samples
+            x = r*cos(t)
+            z = r*sin(t)
+            ## based on the world coordinate
+            xr  = x-(l-t*r)*sin(t) * ( 1)
+            zr  = z+(l-t*r)*cos(t) * (-1)
+            adv = step_size * i/n_samples
 
             # ## Use circle to test
-            xr = (r+0.2)*sin(t)
-            yr = (r+0.2)*cos(t)
-            adv = 0
+            # xr = (r+0.2)*sin(t)
+            # yr = (r+0.2)*cos(t)
+            # adv = 0
 
             t_curve2d = np.array([[1, 0, 0, xr],\
                                   [0, 1, 0, adv],\
-                                  [0, 0, 1, yr],\
+                                  [0, 0, 1, zr],\
                                   [0, 0, 0, 1]])
 
             ## project the curve on the plane that perpendicular to the rod
             t_ft2world = np.dot(t_rod, t_curve2d)
 
-            ## calculate the vector that pointing from the waypoint to the rod's center
-            ## v1 is from the world pointing to the rod's center
-            v1 = np.array(t_rod[:3, 3])
-            ## v2 is from the world pointing to the waypoint
-            v2 = np.array(t_ft2world[:3, 3])
-            q = vect2quat(v2, v1)
+            ## sin(theta') and cos(theta')
+            st = xr/sqrt(xr**2+zr**2)
+            ct = zr/sqrt(xr**2+zr**2)
+
+            t_orientation = np.array([[ct, st,  0, x],\
+                                      [0, 0, -1, adv],\
+                                      [-st, ct,  0, zr],\
+                                      [0, 0,  0, 1]])
+
+            t_ft_orientaion = np.dot(t_rod, t_orientation)
+
+            for j in range(3):
+                for i in range(3):
+                    t_ft2world[i,j] = t_ft_orientaion[i,j]
 
             ## reference frame:world. t_world2gb = t_world2ft*inv(t_gb2ft)
-            # t_gb2world = np.dot(t_ft2world,t_gb2ft)
+            t_gb2world = np.dot(t_ft2world,t_gb2ft)
+            # o = t_ft2world[:3,3]
             # q = quaternion_from_matrix(t_ft2world)
-            o = t_ft2world[:3,3]
+            o = t_gb2world[:3,3]
+            q = quaternion_from_matrix(t_gb2world)
 
             pose = Pose()
             pose.position.x = o[0]

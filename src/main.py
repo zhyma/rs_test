@@ -148,7 +148,8 @@ def main():
 
     pg.publish_waypoints(curve_path)
 
-    # yumi.go_to_pose_goal(ctrl_group[0], curve_path[0])
+    yumi.go_to_pose_goal(ctrl_group[0], curve_path[0])
+    print(ctrl_group[0].get_current_joint_values())
 
     # ## from default position move to the rope starting point
     # stop  = curve_path[0]
