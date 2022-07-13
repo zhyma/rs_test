@@ -42,9 +42,10 @@ def all_close(goal, actual, tolerance):
   return True
 
 class move_yumi():
-    def __init__(self, robot, scene, ctrl_group):
+    def __init__(self, robot, scene, rate, ctrl_group):
         self.robot = robot
         self.scene = scene
+        self.rate = rate
         self.ctrl_group = ctrl_group
         
 
@@ -58,6 +59,41 @@ class move_yumi():
         # We can get a list of all the groups in the robot:
         group_names = self.robot.get_group_names()
         print("============ Robot Groups:{0}".format(self.robot.get_group_names()))
+
+        ## add floor to the planning scene
+        updated = False
+        floor_pose = PoseStamped()
+        floor_pose.header.frame_id = "world"
+        # assign cylinder's pose
+        floor_pose.pose.position.x = 1
+        floor_pose.pose.position.y = 0
+        floor_pose.pose.position.z = 0.0025
+        floor_pose.pose.orientation.w = 1
+        floor_name = "floor"
+        rospy.sleep(1)
+        self.scene.add_box(floor_name, floor_pose, size=(2, 1, 0.005))
+
+        # ensuring collision updates are received
+        start = rospy.get_time()
+        seconds = rospy.get_time()
+        timeout = 5
+        while (seconds - start < timeout) and not rospy.is_shutdown():
+            # attached_objects = self.scene.get_attached_objects([cylinder_name])
+            # print("attached_objects: ", end=',')
+            # print(attached_objects)
+            # is_attached = len(attached_objects.keys()) > 0
+            print("test if added")
+
+            is_known = floor_name in self.scene.get_known_object_names()
+
+            # if (is_attached) and (is_known):
+            #    return True
+            if is_known:
+              print("floor added to the scene")
+              return
+
+            self.rate.sleep()
+            seconds = rospy.get_time()
 
         # # Sometimes for debugging it is useful to print the entire state of the
         # # robot:
