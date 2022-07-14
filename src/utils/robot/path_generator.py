@@ -25,6 +25,19 @@ class path_generator():
         self.waypoint_pub = rospy.Publisher('yumi_waypoint', Path, queue_size=1, latch=True)
         ...
 
+    def step_back(pose, t):
+        ## input is the value of joint_6
+        c = cos(t)
+        s = sin(t)
+        ## homogeneous transformation matrix from link_6_l to link_7_l
+        t = np.array([[ c, -s, 0, 0.027],\
+                      [ 0,  0, 1, 0.029],\
+                      [-s, -c, 0, 0    ],\
+                      [ 0,  0, 0, 1    ]])
+        invt = np.linalg.inv(t)
+        
+        ...
+
     def generate_nusadua(self, t_rod, l, r , step_size):
         ## For left hand
         ## curve on x-z plane

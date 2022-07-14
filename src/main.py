@@ -2,7 +2,7 @@ import sys
 import copy
 
 import numpy as np
-from math import pi
+from math import pi,sin,cos,asin,acos, degrees
 
 from utils.vision.rod_finder import rod_finder
 
@@ -67,8 +67,16 @@ def main():
     j_ctrl.robot_default_l_low()
     j_ctrl.robot_default_r_low()
 
-    t_g2l7 = ws_tf.get_tf('yumi_link_6_l','yumi_link_7_l')
-    print(t_g2l7)
+    rospy.sleep(5)
+    h5_6 = ws_tf.get_tf('yumi_link_5_l','yumi_link_6_l')
+    h6_7 = ws_tf.get_tf('yumi_link_6_l','yumi_link_7_l')
+    # print(h5_6)
+    print(h6_7)
+    # theta_5 = degrees(asin(-h5_6[0,1]))
+    # alpha_5 = degrees(asin(-h5_6[1,2]))
+    # theta_6 = degrees(asin(-h6_7[0,1]))
+    # alpha_6 = degrees(asin(-h6_7[1,2]))
+    # print('theta_5: {}, alpha_5: {}, theta_6: {}, alpha_6: {}'.format(theta_5, alpha_5, theta_6, alpha_6))
 
     # gripper.l_open()
     # gripper.r_open()

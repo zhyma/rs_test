@@ -53,8 +53,7 @@ class joint_ctrl():
         self.ctrl_group[0].stop()
 
     def robot_default_l_low(self):
-        # l_joints_val = [ -1.1694, -2.3213, 1.1694, -0.3665, 0.2792, 1.2392, -0.3491]
-        l_joints_val = [ -1.1694, -2.3213, 0, -0.3665, 0.2792, -pi/2, 0]
+        l_joints_val = [ -1.1694, -2.3213, 1.1694, -0.3665, 0.2792, 1.2392, -0.3491]
         self.ctrl_group[0].set_joint_value_target(l_joints_val)
         self.ctrl_group[0].go(wait=True)
         self.ctrl_group[0].stop()
