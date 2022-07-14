@@ -2,6 +2,7 @@
 
 from math import pi, sin, cos, sqrt, atan2
 import numpy as np
+import sys
 
 import rospy
 from nav_msgs.msg import Path
@@ -10,13 +11,21 @@ from transforms3d import euler
 
 from tf.transformations import quaternion_from_matrix, quaternion_matrix
 
-def vect2quat(v1, v2):
-    ## the quaternion calculated by:
-    ## q.xyz = crossproduct(v1, v2)
-    ## q.w = sqrt((v1.length^2)*(v2.length^2))+dotproduct(v1, v2)
-    ## then normalizing
-    ...
-    return [x, y, z, w]
+sys.path.append('../../')
+from utils.workspace_tf import pose2transformation, transformation2pose
+
+def step_back(pose, theta):
+    ## input is the value of joint_6
+    c = cos(theta)
+    s = sin(theta)
+    ## homogeneous transformation matrix from link_6_l to link_7_l
+    ht = np.array([[ c, -s, 0, 0.027],\
+                  [ 0,  0, 1, 0.029],\
+                  [-s, -c, 0, 0    ],\
+                  [ 0,  0, 0, 1    ]])
+    inv_ht = np.linalg.inv(ht)
+    t = pose2transformation(pose)
+    return transformation2pose(np.dot(t, inv_ht))
 
 
 class path_generator():
@@ -25,20 +34,9 @@ class path_generator():
         self.waypoint_pub = rospy.Publisher('yumi_waypoint', Path, queue_size=1, latch=True)
         ...
 
-    def step_back(pose, t):
-        ## input is the value of joint_6
-        c = cos(t)
-        s = sin(t)
-        ## homogeneous transformation matrix from link_6_l to link_7_l
-        t = np.array([[ c, -s, 0, 0.027],\
-                      [ 0,  0, 1, 0.029],\
-                      [-s, -c, 0, 0    ],\
-                      [ 0,  0, 0, 1    ]])
-        invt = np.linalg.inv(t)
-        
-        ...
+    
 
-    def generate_nusadua(self, t_rod, l, r , step_size):
+    def generate_nusadua(self, t_rod, l, r, step_size):
         ## For left hand
         ## curve on x-z plane
         ## from 2d plane curve to world frame path: [xr, adv, yr]
@@ -85,16 +83,10 @@ class path_generator():
                                       [-st, ct,  0, zr],\
                                       [0, 0,  0, 1]])
 
-            t_ft_orientaion = np.dot(t_rod, t_orientation)
-
-            for j in range(3):
-                for i in range(3):
-                    t_ft2world[i,j] = t_ft_orientaion[i,j]
+            t_ft2world[:3,:3] = np.dot(t_rod, t_orientation)[:3,:3]
 
             ## reference frame:world. t_world2gb = t_world2ft*inv(t_gb2ft)
             t_gb2world = np.dot(t_ft2world,t_gb2ft)
-            # o = t_ft2world[:3,3]
-            # q = quaternion_from_matrix(t_ft2world)
             o = t_gb2world[:3,3]
             q = quaternion_from_matrix(t_gb2world)
 
@@ -107,6 +99,10 @@ class path_generator():
             pose.orientation.y = q[1]
             pose.orientation.z = q[2]
             pose.orientation.w = q[3]
+
+            # theta = (220.0-360.0/n_samples*i)*pi/180.0
+            # new_pose = step_back(pose, theta)
+
             path.append(pose)
         
         return path

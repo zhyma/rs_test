@@ -7,7 +7,7 @@ class marker():
   def __init__(self):
     self.pub = rospy.Publisher("/visualization_marker", Marker, queue_size = 10)
 
-  def show(self, x=0, y=0, z=0):
+  def show(self, pose):
     marker = Marker()
 
     marker.header.frame_id = "world"
@@ -29,13 +29,7 @@ class marker():
     marker.color.a = 0.5
 
     # Set the pose of the marker
-    marker.pose.position.x = x
-    marker.pose.position.y = y
-    marker.pose.position.z = z
-    marker.pose.orientation.x = 0.0
-    marker.pose.orientation.y = 0.0
-    marker.pose.orientation.z = 0.0
-    marker.pose.orientation.w = 1.0
+    marker.pose = pose
 
     self.pub.publish(marker)
 

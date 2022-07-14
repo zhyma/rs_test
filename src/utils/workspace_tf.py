@@ -6,6 +6,27 @@ import rospy
 import tf
 # import geometry_msgs.msg
 from tf.transformations import quaternion_from_matrix, quaternion_matrix
+from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
+
+def pose2transformation(pose):
+    rot = [pose.orientation.x, pose.orientation.y,\
+           pose.orientation.z, pose.orientation.w]
+    ht = quaternion_matrix(rot)
+    ht[:3,3] = [pose.position.x, pose.position.y, pose.position.z]
+    return ht
+
+def transformation2pose(mat):
+    pose = Pose()
+    q = quaternion_from_matrix(mat)
+    o = mat[:3,3]
+    pose.position.x = o[0]
+    pose.position.y = o[1]
+    pose.position.z = o[2]
+    pose.orientation.x = q[0]
+    pose.orientation.y = q[1]
+    pose.orientation.z = q[2]
+    pose.orientation.w = q[3]
+    return pose
 
 ## workspace tf
 class workspace_tf:
