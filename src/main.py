@@ -166,8 +166,14 @@ def main():
 
     pg.publish_waypoints(curve_path)
 
-    yumi.pose_with_restrict(0, curve_path[0], 2*pi-2.5)
+    j_start_value = 2*pi-2.5
+    yumi.pose_with_restrict(0, curve_path[0], j_start_value)
     rospy.sleep(2)
+
+    for i in range(len(curve_path)-1):
+        angle = j_start_value - 2*pi/len(curve_path)*(i+1)
+        yumi.pose_with_restrict(0, curve_path[i+1], angle)
+        # rospy.sleep(0.1)
 
 
     # goal.show(starting_pose)
