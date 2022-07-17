@@ -32,8 +32,6 @@ def main():
     from transforms3d import euler
     import moveit_msgs.msg
 
-    from trac_ik_python.trac_ik import IK
-
     import tf
     from tf.transformations import quaternion_from_matrix, quaternion_matrix
 
@@ -57,15 +55,15 @@ def main():
     ctrl_group = []
     ctrl_group.append(moveit_commander.MoveGroupCommander('left_arm'))
     ctrl_group.append(moveit_commander.MoveGroupCommander('right_arm'))
+    j_ctrl = joint_ctrl(ctrl_group)
 
     ## initialzing the yumi motion planner
-    yumi = move_yumi(robot, scene, rate, ctrl_group)
+    yumi = move_yumi(robot, scene, rate, ctrl_group, j_ctrl)
 
     ##-------------------##
     ## reset the robot
     gripper.l_open()
     gripper.r_open()
-    j_ctrl = joint_ctrl(ctrl_group)
     j_ctrl.robot_default_l_low()
     j_ctrl.robot_default_r_low()
 
@@ -122,10 +120,6 @@ def main():
     ws_distance = h[0,3]
     print(ws_distance)
     img = copy.deepcopy(ic.cv_image)
-    # while True:
-    #     cv2.imshow("Image window", img)
-    #     cv2.waitKey(3)
-    #     rate.sleep()
     
     # rf.find_rod(rs.pcd, img, ws_distance)
     rf.rod_transformation = np.array([[ 0.9935388,   0.10384128, -0.04579992,  0.60588046],\
@@ -142,7 +136,6 @@ def main():
     ## broadcasting the rod's tf
     t_rod2cam = rf.rod_transformation
 
-    # t_cam2world = ws_tf.get_tf('world','camera_depth_frame')
     t_rod_in_scene = np.dot(t_cam2world, t_rod2cam)
     t_rod2world = np.dot(t_rod_in_scene, t_rod_correction)
 
@@ -173,37 +166,9 @@ def main():
 
     pg.publish_waypoints(curve_path)
 
-    ik_solver = IK("world", "yumi_link_6_l")
-    
-    reset_pose = curve_path[0]
-    # print(test_pose)
-    test_pose = step_back(reset_pose, -2.5)
-    ws_tf.set_tf('world', 'target_link_6_l', pose2transformation(test_pose))
+    yumi.pose_with_restrict(0, curve_path[0], 2*pi-2.5)
+    rospy.sleep(2)
 
-    seed_state = ctrl_group[0].get_current_joint_values()
-    x = test_pose.position.x
-    y = test_pose.position.y
-    z = test_pose.position.z
-    qx = test_pose.orientation.x
-    qy = test_pose.orientation.y
-    qz = test_pose.orientation.z
-    qw = test_pose.orientation.w
-    # ik_sol = ik_solver.get_ik(seed_state[:6], x, y, z, qx, qy, qz, qw)
-    ik_sol = ik_solver.get_ik(seed_state[:6], x, y, z, qx, qy, qz, qw)
-    print(seed_state)
-
-    # starting_pose = step_back(curve_path[0], 220.0/180.0*pi)
-    # print(starting_pose)
-    # goal.show(starting_pose)
-    j_val = [i for i in ik_sol]+ [-2.5]#(220.0/180.0*pi,)
-    print(ik_sol)
-    
-    j_ctrl.robot_setjoint(0, j_val)
-    j_val[-1] = 2*pi-2.5
-
-    j_ctrl.robot_setjoint(0, j_val)
-
-    # j_val[-1] = 2*pi
 
     # goal.show(starting_pose)
     # yumi.go_to_pose_goal(ctrl_group[0], starting_pose)
@@ -221,9 +186,7 @@ def main():
     # gripper.l_close()
 
     # ## wrapping
-    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, curve_path)
-    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
-    # rospy.sleep(2)
+    ...
 
     # gripper.l_open()
     # gripper.r_open()

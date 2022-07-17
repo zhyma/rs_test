@@ -5,10 +5,12 @@
 import sys
 import copy
 import rospy
+import numpy as np
+from math import pi,sin,cos,asin,acos, degrees
+
 import moveit_commander
 import moveit_msgs.msg
 import geometry_msgs.msg
-from math import pi
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 
@@ -16,6 +18,8 @@ from transforms3d import euler
 from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
 
 from tf.transformations import quaternion_from_matrix, quaternion_matrix
+
+from trac_ik_python.trac_ik import IK
 
 # from .spiral import path_generator
 
@@ -41,12 +45,32 @@ def all_close(goal, actual, tolerance):
 
   return True
 
+sys.path.append('../../')
+from utils.workspace_tf import pose2transformation, transformation2pose
+
+def step_back_l(pose, theta):
+    ## input is the value of joint_6
+    c = cos(theta)
+    s = sin(theta)
+    ## homogeneous transformation matrix from link_6_l to link_7_l
+    ht = np.array([[ c, -s, 0, 0.027],\
+                  [ 0,  0, 1, 0.029],\
+                  [-s, -c, 0, 0    ],\
+                  [ 0,  0, 0, 1    ]])
+    inv_ht = np.linalg.inv(ht)
+    t = pose2transformation(pose)
+    return transformation2pose(np.dot(t, inv_ht))
+
 class move_yumi():
-    def __init__(self, robot, scene, rate, ctrl_group):
+    def __init__(self, robot, scene, rate, ctrl_group, j_ctrl):
         self.robot = robot
         self.scene = scene
         self.rate = rate
         self.ctrl_group = ctrl_group
+        self.ik_solver = []
+        self.ik_solver.append(IK("world", "yumi_link_6_l"))
+        self.ik_solver.append(IK("world", "yumi_link_6_r"))
+        self.j_ctrl = j_ctrl
         
 
         planning_frame = self.ctrl_group[0].get_planning_frame()
@@ -100,8 +124,25 @@ class move_yumi():
         # print("============ Printing robot state")
         # print(robot.get_current_state())
         # print('')
+
+    def pose_with_restrict(self, group, pose_goal, joint_7_value):
+      stepback_pose = step_back_l(pose_goal, joint_7_value)
+
+      seed_state = self.ctrl_group[group].get_current_joint_values()
+      x = stepback_pose.position.x
+      y = stepback_pose.position.y
+      z = stepback_pose.position.z
+      qx = stepback_pose.orientation.x
+      qy = stepback_pose.orientation.y
+      qz = stepback_pose.orientation.z
+      qw = stepback_pose.orientation.w
+      ik_sol = self.ik_solver[group].get_ik(seed_state[:6], x, y, z, qx, qy, qz, qw)
+
+      joint_val = [i for i in ik_sol]+ [joint_7_value]
+      self.j_ctrl.robot_setjoint(group, joint_val)
+      ...
     
-    def go_to_pose_goal(self, group, pose_goal):
+    def goto_pose(self, group, pose_goal):
         ## BEGIN_SUB_TUTORIAL plan_to_pose
         ##
         ## Planning to a Pose Goal
@@ -128,23 +169,23 @@ class move_yumi():
 
     def plan_cartesian_traj(self, groups, side, path):
         waypoints = []
-        for wp in path:
-          pose = Pose()
-          pose.position.x = wp[0]
-          pose.position.y = wp[1]
-          pose.position.z = wp[2]
+        # for wp in path:
+        #   pose = Pose()
+        #   pose.position.x = wp[0]
+        #   pose.position.y = wp[1]
+        #   pose.position.z = wp[2]
 
-          if side == 0:
-            # left
-            quat = euler.euler2quat(pi, 0, -pi/2, 'sxyz')
-          else:
-            # right
-            quat = euler.euler2quat(pi, 0, pi/2, 'sxyz')
-          pose.orientation.x = quat[0]
-          pose.orientation.y = quat[1]
-          pose.orientation.z = quat[2]
-          pose.orientation.w = quat[3]
-          waypoints.append(pose)
+        #   if side == 0:
+        #     # left
+        #     quat = euler.euler2quat(pi, 0, -pi/2, 'sxyz')
+        #   else:
+        #     # right
+        #     quat = euler.euler2quat(pi, 0, pi/2, 'sxyz')
+        #   pose.orientation.x = quat[0]
+        #   pose.orientation.y = quat[1]
+        #   pose.orientation.z = quat[2]
+        #   pose.orientation.w = quat[3]
+        #   waypoints.append(pose)
 
         (plan, fraction) = groups[side].compute_cartesian_path(
                                         waypoints,   # waypoints to follow

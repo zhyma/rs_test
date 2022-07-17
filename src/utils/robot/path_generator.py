@@ -33,7 +33,6 @@ class path_generator():
     def __init__(self):
         self.waypoint_pub = rospy.Publisher('yumi_waypoint', Path, queue_size=1, latch=True)
         ...
-
     
 
     def generate_nusadua(self, t_rod, l, r, step_size):
