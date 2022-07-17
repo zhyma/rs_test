@@ -177,7 +177,7 @@ def main():
     
     reset_pose = curve_path[0]
     # print(test_pose)
-    test_pose = step_back(reset_pose, -2)
+    test_pose = step_back(reset_pose, -2.5)
     ws_tf.set_tf('world', 'target_link_6_l', pose2transformation(test_pose))
 
     seed_state = ctrl_group[0].get_current_joint_values()
@@ -195,10 +195,15 @@ def main():
     # starting_pose = step_back(curve_path[0], 220.0/180.0*pi)
     # print(starting_pose)
     # goal.show(starting_pose)
-    j_val = ik_sol[:6] + (-2,)#(220.0/180.0*pi,)
+    j_val = [i for i in ik_sol]+ [-2.5]#(220.0/180.0*pi,)
     print(ik_sol)
     
     j_ctrl.robot_setjoint(0, j_val)
+    j_val[-1] = 2*pi-2.5
+
+    j_ctrl.robot_setjoint(0, j_val)
+
+    # j_val[-1] = 2*pi
 
     # goal.show(starting_pose)
     # yumi.go_to_pose_goal(ctrl_group[0], starting_pose)
