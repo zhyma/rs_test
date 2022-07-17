@@ -40,6 +40,12 @@ class joint_ctrl():
 
         # rospy.sleep(1)
 
+    def robot_setjoint(self, selected_group, value):
+        n = selected_group
+        self.ctrl_group[n].set_joint_value_target(value)
+        self.ctrl_group[n].go(wait=True)
+        self.ctrl_group[n].stop()
+
     def robot_default_r(self):
         r_joints_val = [ 1.4069, -2.0969, -0.7069, 0.2969, 0, 0, 0]
         self.ctrl_group[1].set_joint_value_target(r_joints_val)

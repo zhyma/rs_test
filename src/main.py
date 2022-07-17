@@ -26,11 +26,13 @@ def main():
     from utils.robot.gripper_ctrl    import gripper_ctrl
     from utils.robot.visualization   import marker
 
-    from utils.workspace_tf          import workspace_tf
+    from utils.workspace_tf          import workspace_tf, pose2transformation, transformation2pose
 
     from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
     from transforms3d import euler
     import moveit_msgs.msg
+
+    from trac_ik_python.trac_ik import IK
 
     import tf
     from tf.transformations import quaternion_from_matrix, quaternion_matrix
@@ -171,12 +173,32 @@ def main():
 
     pg.publish_waypoints(curve_path)
 
-    ik_solver = IK("yumi_body", "yumi_link_6_l")
-    seed_state = ctrl_group[0].get_current_joint_values()
-    ik_sol = ik_solver.get_ik(seed_state, x, y, z, qx, qy, qz, qw)
+    ik_solver = IK("world", "yumi_link_6_l")
+    
+    reset_pose = curve_path[0]
+    # print(test_pose)
+    test_pose = step_back(reset_pose, -2)
+    ws_tf.set_tf('world', 'target_link_6_l', pose2transformation(test_pose))
 
-    starting_pose = step_back(curve_path[0], 220.0/180.0*pi)
-    goal.show(starting_pose)
+    seed_state = ctrl_group[0].get_current_joint_values()
+    x = test_pose.position.x
+    y = test_pose.position.y
+    z = test_pose.position.z
+    qx = test_pose.orientation.x
+    qy = test_pose.orientation.y
+    qz = test_pose.orientation.z
+    qw = test_pose.orientation.w
+    # ik_sol = ik_solver.get_ik(seed_state[:6], x, y, z, qx, qy, qz, qw)
+    ik_sol = ik_solver.get_ik(seed_state[:6], x, y, z, qx, qy, qz, qw)
+    print(seed_state)
+
+    # starting_pose = step_back(curve_path[0], 220.0/180.0*pi)
+    # print(starting_pose)
+    # goal.show(starting_pose)
+    j_val = ik_sol[:6] + (-2,)#(220.0/180.0*pi,)
+    print(ik_sol)
+    
+    j_ctrl.robot_setjoint(0, j_val)
 
     # goal.show(starting_pose)
     # yumi.go_to_pose_goal(ctrl_group[0], starting_pose)
