@@ -22,7 +22,7 @@ def main():
     # from utility.detect_cable    import cable_detection
     from utils.robot.workspace_ctrl  import move_yumi
     from utils.robot.jointspace_ctrl import joint_ctrl
-    from utils.robot.path_generator  import path_generator, step_back
+    from utils.robot.path_generator  import path_generator
     from utils.robot.gripper_ctrl    import gripper_ctrl
     from utils.robot.visualization   import marker
 
@@ -167,42 +167,43 @@ def main():
     pg.publish_waypoints(curve_path)
 
     j_start_value = 2*pi-2.5
-    yumi.pose_with_restrict(0, curve_path[0], j_start_value)
-    rospy.sleep(2)
 
-    for i in range(len(curve_path)-1):
-        angle = j_start_value - 2*pi/len(curve_path)*(i+1)
-        yumi.pose_with_restrict(0, curve_path[i+1], angle)
-        # rospy.sleep(0.1)
-
-
-    # goal.show(starting_pose)
-    # yumi.go_to_pose_goal(ctrl_group[0], starting_pose)
-    # print(ctrl_group[0].get_current_joint_values())
 
     # ## from default position move to the rope starting point
-    # stop  = curve_path[0]
-    # start = [stop[0], stop[1] + 0.25, stop[2]]
-    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, [start, stop])
-    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
-    # print("go to pose have the cable in between gripper: ", end="")
-    # rospy.sleep(2)
-
+    stop  = curve_path[0]
+    ht_stop = pose2transformation(stop)
+    start_offset = np.array([[1, 0, 0, 0],\
+                             [0, 1, 0, 0],\
+                             [0, 0, 1, -0.08],\
+                             [0, 0, 0, 1]])
+    start = transformation2pose(np.dot(ht_stop, start_offset))
+    yumi.pose_with_restrict(0, start, j_start_value)
+    rospy.sleep(2)
+    yumi.pose_with_restrict(0, stop, j_start_value)
     # ## grabbing the rope
-    # gripper.l_close()
+    gripper.l_close()
 
-    # ## wrapping
+    rospy.sleep(2)
+
+    ## wrapping
+    last_j_angle = 0
+    for i in range(len(curve_path)-1):
+        last_j_angle = j_start_value - 2*pi/len(curve_path)*(i+1)
+        yumi.pose_with_restrict(0, curve_path[i+1], last_j_angle)
+
     ...
 
-    # gripper.l_open()
+    gripper.l_open()
     # gripper.r_open()
 
-    # start = curve_path[-1]
-    # stop = [start[0], start[1], 0.1]
-
-    # path = [start, stop]
-    # cartesian_plan, fraction = yumi.plan_cartesian_traj(ctrl_group, 0, path)
-    # yumi.execute_plan(cartesian_plan, ctrl_group[0])
+    start  = curve_path[-1]
+    stop = copy.deepcopy(start)
+    if stop.position.z > 0.1:
+        stop.position.z -= 0.08
+    yumi.pose_with_restrict(0, start, last_j_angle)
+    rospy.sleep(2)
+    yumi.pose_with_restrict(0, stop, last_j_angle)
+    j_ctrl.robot_default_l_low()
 
     # # gripper.l_open()
     # # gripper.r_open()
