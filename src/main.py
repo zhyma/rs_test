@@ -24,7 +24,7 @@ def main():
     from utils.robot.jointspace_ctrl import joint_ctrl
     from utils.robot.path_generator  import path_generator
     from utils.robot.gripper_ctrl    import gripper_ctrl
-    from utils.robot.visualization   import marker
+    from utils.robot.quinticpoly     import quinticpoly
 
     from utils.workspace_tf          import workspace_tf, pose2transformation, transformation2pose
 
@@ -43,7 +43,7 @@ def main():
 
     pg = path_generator()
     gripper = gripper_ctrl()
-    goal = marker()
+    # goal = marker()
 
     ##-------------------##
     ## initializing the moveit 
@@ -177,19 +177,51 @@ def main():
                              [0, 0, 1, -0.08],\
                              [0, 0, 0, 1]])
     start = transformation2pose(np.dot(ht_stop, start_offset))
-    yumi.pose_with_restrict(0, start, j_start_value)
+    # yumi.pose_with_restrict(0, start, j_start_value)
+    j_ctrl.robot_setjoint(0, yumi.ik_with_restrict(0, start, j_start_value))
     rospy.sleep(2)
-    yumi.pose_with_restrict(0, stop, j_start_value)
+    # yumi.pose_with_restrict(0, stop, j_start_value)
+    q_start = yumi.ik_with_restrict(0, stop, j_start_value)
+    j_ctrl.robot_setjoint(0, q_start)
     # ## grabbing the rope
     gripper.l_close()
 
     rospy.sleep(2)
 
     ## wrapping
+    n_samples = 10
+    t0 = 0
+    tf = 2
+    j_traj = np.zeros(((len(curve_path)-1)*n_samples, 7))
     last_j_angle = 0
+    q0 = copy.deepcopy(q_start)
     for i in range(len(curve_path)-1):
+        print('q0 is: ', end='')
+        print(q0)
         last_j_angle = j_start_value - 2*pi/len(curve_path)*(i+1)
-        yumi.pose_with_restrict(0, curve_path[i+1], last_j_angle)
+        # yumi.pose_with_restrict(0, curve_path[i+1], last_j_angle)
+        qf = yumi.ik_with_restrict(0, curve_path[i+1], last_j_angle)
+        print('qf is: ', end='')
+        print(qf)
+
+        ## apply quintic polynomial here
+        for cnt in range(n_samples):
+            t = tf/n_samples*(cnt+1)
+            ## for each joint
+            for j in range(7):
+                a = quinticpoly(t0, tf, q0[j], qf[j], 0, 0, 0, 0)
+                q = a[0] + a[1]*t + a[2]*t**2 + a[3]*t**3 + a[4]*t**4 + a[5]*t**5
+                # j_traj[i*n_samples + cnt, j] = q
+                j_traj[cnt, j] = q
+
+        q0 = copy.deepcopy(qf)
+
+        for j in range(n_samples):
+            print(j_traj[j, :])
+            j_ctrl.robot_setjoint(0, j_traj[j, :])
+        
+    # for i in range((len(curve_path)-1)*n_samples):
+    #     j_ctrl.robot_setjoint(0, j_traj[i, :])
 
     ...
 
@@ -200,9 +232,11 @@ def main():
     stop = copy.deepcopy(start)
     if stop.position.z > 0.1:
         stop.position.z -= 0.08
-    yumi.pose_with_restrict(0, start, last_j_angle)
+    # yumi.pose_with_restrict(0, start, last_j_angle)
+    j_ctrl.robot_setjoint(0, yumi.ik_with_restrict(0, start, last_j_angle))
     rospy.sleep(2)
-    yumi.pose_with_restrict(0, stop, last_j_angle)
+    # yumi.pose_with_restrict(0, stop, last_j_angle)
+    j_ctrl.robot_setjoint(0, yumi.ik_with_restrict(0, stop, last_j_angle))
     j_ctrl.robot_default_l_low()
 
     # # gripper.l_open()

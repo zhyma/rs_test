@@ -125,7 +125,7 @@ class move_yumi():
         # print(robot.get_current_state())
         # print('')
 
-    def pose_with_restrict(self, group, pose_goal, joint_7_value):
+    def ik_with_restrict(self, group, pose_goal, joint_7_value):
       stepback_pose = step_back_l(pose_goal, joint_7_value)
 
       seed_state = self.ctrl_group[group].get_current_joint_values()
@@ -136,11 +136,12 @@ class move_yumi():
       qy = stepback_pose.orientation.y
       qz = stepback_pose.orientation.z
       qw = stepback_pose.orientation.w
-      ik_sol = self.ik_solver[group].get_ik(seed_state[:6], x, y, z, qx, qy, qz, qw)
+      cnt = 10
+      ik_sol = None
+      while (ik_sol is None) and (cnt > 0):
+        ik_sol = self.ik_solver[group].get_ik(seed_state[:6], x, y, z, qx, qy, qz, qw)
 
-      joint_val = [i for i in ik_sol]+ [joint_7_value]
-      self.j_ctrl.robot_setjoint(group, joint_val)
-      ...
+      return [i for i in ik_sol]+ [joint_7_value]
     
     def goto_pose(self, group, pose_goal):
         ## BEGIN_SUB_TUTORIAL plan_to_pose
